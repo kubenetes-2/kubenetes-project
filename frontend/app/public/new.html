@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>새 채용공고 등록</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="form-card">
+        <h2 class="form-title">새 채용공고 등록</h2>
+        <form id="jobForm">
+            <label for="title">공고명</label>
+            <input id="title" type="text" name="title" placeholder="예: 백엔드 엔지니어 (Node.js)" required>
+            
+            <label for="company">기업명</label>
+            <input id="company" type="text" name="company" placeholder="예: 내일의발견 주식회사" required>
+            
+            <label for="size">기업규모</label>
+            <input id="size" type="text" name="size" placeholder="예: 스타트업 / 중견 / 대기업">
+            
+            <label for="address">주소</label>
+            <input id="address" type="text" name="address" placeholder="예: 서울시 ○○구 ○○로 123">
+            
+            <label for="role">직무</label>
+            <input id="role" type="text" name="role" placeholder="예: 서버 개발 / 인프라 / 프론트엔드">
+            
+            <label for="techStack">기술스택</label>
+            <input id="techStack" type="text" name="techStack" placeholder="예: Node.js, Express, MongoDB, Docker">
+            
+            <label for="career">경력</label>
+            <input id="career" type="text" name="career" placeholder="예: 신입 / 3년 이상 / 무관">
+            
+            <label for="salary">연봉 및 급여</label>
+            <input id="salary" type="text" name="salary" placeholder="예: 4,000만원 ~ 6,000만원 / 협의">
+            
+            <label for="endDate">마감일</label>
+            <input id="endDate" type="date" name="endDate" required>
+
+            <div class="btn-row">
+                <button id="submitBtn" type="button">등록</button>
+                <a class="btn" href="/">목록으로</a>
+            </div>
+        </form>
+    </div>
+
+    <script src="/js/new.js"></script>
+</body>
+</html>

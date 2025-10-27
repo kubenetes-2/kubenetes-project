@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # MongoDB 데이터베이스
+  mongodb:
+    image: mongo:7.0
+    container_name: gb_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: jobsdb
+
+  # 백엔드 API 서버
+  backend:
+    build: ./backend
+    container_name: gb_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      MONGO_URI: mongodb://gb_mongodb:27017/jobsdb
+    depends_on:
+      - mongodb
+    networks:
+      - app-network
+
+  # 프론트엔드 웹 서버
+  frontend:
+    build: ./frontend/app
+    container_name: gb_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  app-network:
+    driver: bridge

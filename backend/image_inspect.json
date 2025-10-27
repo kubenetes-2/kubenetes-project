@@ -1,0 +1,70 @@
+[
+    {
+        "Id": "sha256:47d42e4bc22534bd78fd93a2abf34f1d962fe65dabd32bc7c54b6d2cac1d10cd",
+        "RepoTags": [
+            "harbor.test.com/docker-final4/backend:inspect"
+        ],
+        "RepoDigests": [
+            "harbor.test.com/docker-final4/backend@sha256:0c8122ab7be7dae2d90e7295a1602199dc53dc6bbf14f97b36fa722984b202af"
+        ],
+        "Parent": "",
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2025-10-19T13:00:49.872901706+09:00",
+        "DockerVersion": "",
+        "Author": "",
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 159954703,
+        "GraphDriver": {
+            "Data": {
+                "LowerDir": "/var/lib/docker/overlay2/dee36c1adcd3184339faa5881dc0f519f30e5527d258bbd1fa8537dd4298a6a2/diff:/var/lib/docker/overlay2/cc804b2ae52144116d0190e15f60855bc6c096fa1e880b3cde4bb183b3ab4da2/diff:/var/lib/docker/overlay2/4c308abe79df86f8e9eaea87b267c70aba7554998e04c32729f14f7ebda67f65/diff:/var/lib/docker/overlay2/1fb360f89daf26c39d5ea2e0cbd679c598d1eeee46bc02e9eabf746fbd0e36fb/diff:/var/lib/docker/overlay2/086d67fb5bd1614d6e3ae3084e6b72c85fb088339b7c478b8b3cfdbdb35b7b76/diff:/var/lib/docker/overlay2/05fabdcc694e5ad7f4576dcbd72ff10464fd2699a22b3db96739fd124f58b09b/diff:/var/lib/docker/overlay2/858bec6b99c311f83440774dfb8e289fdc3f7d33fd737c05758dd94c2d722352/diff",
+                "MergedDir": "/var/lib/docker/overlay2/ca7be6e8d17702a9808631590f2f3e1459880aede222ce7f41c8f54b89c5b1ef/merged",
+                "UpperDir": "/var/lib/docker/overlay2/ca7be6e8d17702a9808631590f2f3e1459880aede222ce7f41c8f54b89c5b1ef/diff",
+                "WorkDir": "/var/lib/docker/overlay2/ca7be6e8d17702a9808631590f2f3e1459880aede222ce7f41c8f54b89c5b1ef/work"
+            },
+            "Name": "overlay2"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:08000c18d16dadf9553d747a58cf44023423a9ab010aab96cf263d2216b8b350",
+                "sha256:0b1f26057bd0491a50f56fd7f2983bd3ad478511f12fff2b361a97c50cb5828b",
+                "sha256:f3b40b0cdb1caad1db11b8589c814f85b3e69f3ed33f64a686e465e74a47c9f0",
+                "sha256:82140d9a70a706b719632fec8e4d083419fc62159f94afec80dcabc52e0ed0d2",
+                "sha256:b4f403f203da5f85be38e56d6e210bd851d02c67f076f36c45c040437b5255aa",
+                "sha256:db032024f136f9a1b77319e47f4ec0cef51bf9a82dbf22cf8e428c92d9b992a9",
+                "sha256:290a35b2dc38db43a72893b43f35a862ef438ee9f36dff91df90b421c1c90e24",
+                "sha256:658e2a3b9c70b3fafa13048fa049799d95e8dd1a3bbb4d293d84918aed6c5cff"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2025-10-23T09:48:29.156198901+09:00"
+        },
+        "Config": {
+            "ArgsEscaped": true,
+            "Cmd": [
+                "node",
+                "app.js"
+            ],
+            "Entrypoint": [
+                "docker-entrypoint.sh"
+            ],
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "NODE_VERSION=18.20.8",
+                "YARN_VERSION=1.22.22",
+                "NODE_ENV=production",
+                "PORT=8000",
+                "MONGO_URL=mongodb://gb_mongodb:27017/jobsdb"
+            ],
+            "ExposedPorts": {
+                "8000/tcp": {}
+            },
+            "Labels": null,
+            "OnBuild": null,
+            "User": "",
+            "Volumes": null,
+            "WorkingDir": "/backend"
+        }
+    }
+]

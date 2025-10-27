@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <title>채용공고 수정</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/form.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>채용공고 수정</h1>
+    <form id="editForm">
+        <input type="hidden" name="id" id="jobId">
+        <label>공고명</label>
+        <input type="text" name="title" id="title">
+        <label>기업명</label>
+        <input type="text" name="company" id="company">
+        <label>기업규모</label>
+        <input type="text" name="scale" id="scale">
+        <label>주소</label>
+        <input type="text" name="address" id="address">
+        <label>직무</label>
+        <input type="text" name="position" id="position">
+        <label>기술스택</label>
+        <input type="text" name="skills" id="skills">
+        <label>경력</label>
+        <input type="text" name="career" id="career">
+        <label>연봉 및 급여</label>
+        <input type="text" name="salary" id="salary">
+        <label>마감일</label>
+        <input type="text" name="deadline" id="deadline">
+        <button type="submit">저장</button>
+        <a href="/">← 목록으로</a>
+    </form>
+
+    <script src="/js/edit.js"></script>
+</body>
+</html>

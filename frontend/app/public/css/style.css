@@ -1,0 +1,240 @@
+/* ===== 기본 ===== */
+body {
+  background-color: #f9fafc;
+  font-family: "Noto Sans KR", sans-serif;
+  color: #222;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.banner {
+  text-align: center;
+  background: #1a237e;
+  color: white;
+  padding: 1rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.banner h1 { margin: 0; font-size: 2rem; }
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 2.3fr;
+  gap: 2rem;
+  padding: 2.5rem 3rem;
+  width: 90%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* ===== 패널 ===== */
+.left-panel, .right-panel {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  min-height: 600px;
+}
+
+/* ===== 달력 ===== */
+.calendar {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+.calendar th, .calendar td {
+  border: 1px solid #ddd;
+  padding: 0.5em;
+}
+.calendar th { background-color: #f5f5f5; font-weight: bold; }
+.calendar-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ===== 내 정보 입력폼 ===== */
+.myinfo {
+  margin-top: 2rem;
+}
+#infoForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+#infoForm label {
+  font-weight: bold;
+}
+#infoForm input {
+  padding: 10px;
+  font-size: 1.05rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+#infoForm input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 4px rgba(79, 70, 229, 0.3);
+  outline: none;
+}
+.button-box {
+  display: flex;
+  gap: 12px;
+}
+.button-box button {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.button-box button:hover {
+  background: #3730a3;
+}
+#infoDisplay {
+  margin-top: 15px;
+  line-height: 1.8;
+  font-size: 1rem;
+}
+
+/* ===== 채용공고 테이블 ===== */
+.job-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+.job-table th, .job-table td {
+  padding: 0.8em;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+.job-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+.new-post-btn {
+  background: #4f46e5;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 25px;
+  text-decoration: none;
+  font-weight: bold;
+}
+.new-post-btn:hover {
+  background: #3730a3;
+}
+
+/* ===========================
+   크기 확대 및 비율 조정
+=========================== */
+
+/* 전체 비율 확대 */
+body {
+  zoom: 0.8; /* 전체 요소를 120% 확대 */
+}
+
+@supports not (zoom: 1) {
+  body {
+    transform: scale(1.2);
+    transform-origin: top center;
+  }
+}
+
+/* 대시보드 영역 확장 */
+.dashboard {
+  width: 95%;
+  max-width: 1800px;
+  gap: 2.5rem;
+  padding: 3rem 4rem;
+}
+
+/* 좌우 패널의 여백 및 내부 패딩 확대 */
+.left-panel, .right-panel {
+  padding: 2.5rem;
+  min-height: 700px;
+}
+
+/* 달력의 셀 크기 및 폰트 확대 */
+.calendar th, .calendar td {
+  padding: 0.8em;
+  font-size: 1.1rem;
+}
+
+/* 채용공고 테이블 행간과 폰트 확대 */
+.job-table th, .job-table td {
+  padding: 1em;
+  font-size: 1.1rem;
+}
+
+/* 카드 슬라이더 영역 높이 조정 (나중 확장용 대비) */
+.job-card-section {
+  margin-top: 30px;
+  transform: scale(1.1);
+  transform-origin: top left;
+}
+
+
+/* 달력 마감일 강조 */
+.calendar td {
+  position: relative;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.calendar td[style*="background-color"] {
+  border: 2px solid #facc15;
+  border-radius: 6px;
+  color: #b45309;
+  font-weight: 600;
+}
+
+
+.newjob-container {
+  max-width: 500px;
+  margin: 80px auto;
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+.job-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.job-form input {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.job-form button {
+  background: #4a48db;
+  color: white;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.job-form button:hover {
+  background: #3836b8;
+}
+
+.job-form a {
+  text-align: center;
+  color: #666;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.job-form a:hover {
+  text-decoration: underline;
+}
+

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>내일의 발견</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <header class="banner">
+        <h1>내일의 발견</h1>
+    </header>
+
+    <main class="dashboard">
+        <!-- 왼쪽 영역: 달력 + 내정보 -->
+        <section class="left-panel">
+            <div class="calendar-box">
+                <div class="calendar-nav">
+                    <button id="prevMonth">◀</button>
+                    <h2 id="monthTitle"></h2>
+                    <button id="nextMonth">▶</button>
+                </div>
+                <table class="calendar">
+                    <thead>
+                        <tr>
+                            <th>Sun</th>
+                            <th>Mon</th>
+                            <th>Tue</th>
+                            <th>Wed</th>
+                            <th>Thu</th>
+                            <th>Fri</th>
+                            <th>Sat</th>
+                        </tr>
+                    </thead>
+                    <tbody id="calendarBody"></tbody>
+                </table>
+            </div>
+
+            <div class="myinfo">
+                <h3>👤 내 정보</h3>
+                <form id="infoForm">
+                    <label for="name">이름:</label>
+                    <input id="name" type="text" placeholder="이름 입력">
+                    <label for="email">이메일:</label>
+                    <input id="email" type="email" placeholder="이메일 입력">
+                    <label for="phone">전화번호:</label>
+                    <input id="phone" type="text" placeholder="전화번호 입력">
+                    <div class="button-box">
+                        <button id="registerBtn" type="button">등록</button>
+                        <button id="updateBtn" type="button">수정</button>
+                    </div>
+                </form>
+                <hr>
+                <ul id="infoDisplay">
+                    <li>이름: <span id="displayName">-</span></li>
+                    <li>이메일: <span id="displayEmail">-</span></li>
+                    <li>전화번호: <span id="displayPhone">-</span></li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 오른쪽 영역: 채용 공고 목록 -->
+        <section class="right-panel">
+            <div class="job-header">
+                <h2>🧾 채용 공고 목록</h2>
+                <a class="new-post-btn" href="/new.html">➕ 새 공고 등록</a>
+            </div>
+            <table class="job-table">
+                <thead>
+                    <tr>
+                        <th>공고명</th>
+                        <th>기업명</th>
+                        <th>기업규모</th>
+                        <th>주소</th>
+                        <th>직무</th>
+                        <th>기술스택</th>
+                        <th>경력</th>
+                        <th>연봉 및 급여</th>
+                        <th>마감일</th>
+                    </tr>
+                </thead>
+                <tbody id="jobTbody">
+                    <tr>
+                        <td colspan="9">🔒 전체 공고 미리보기</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
