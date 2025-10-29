@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>저장내역조회</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/storage.js"></script>
+  <script>
+    function render(){
+      const current = StorageAPI.currentUser();
+      const ids = StorageAPI.getSaved(current?.id);
+      const jobs = StorageAPI.getJobs().filter(j=>ids.includes(j.id));
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML='';
+      for (const j of jobs){
+        const tr=document.createElement('tr');
+        const cells=[j.title,j.company,j.role,j.endDate];
+        for(const c of cells){ const td=document.createElement('td'); td.textContent=c||'-'; tr.appendChild(td);} 
+        const td=document.createElement('td');
+        const btn=document.createElement('button');
+        btn.textContent='삭제';
+        btn.onclick=()=>{ StorageAPI.unsaveJob(current?.id, j.id); render(); };
+        td.appendChild(btn); tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
+</head>
+<body>
+  <header class="banner"><h1>내일의 발견</h1></header>
+  <main class="dashboard" style="grid-template-columns:1fr;">
+    <section class="left-panel">
+      <h2>저장내역 조회</h2>
+      <table class="job-table">
+        <thead><tr><th>공고명</th><th>기업명</th><th>직무</th><th>마감일</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div style="margin-top:12px;"><a class="btn" href="/">메인으로</a></div>
+    </section>
+  </main>
+</body>
+</html>
+
+

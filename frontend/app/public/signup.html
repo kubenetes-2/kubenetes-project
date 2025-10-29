@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>회원가입</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/form.css">
+  <script src="/js/storage.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const form = document.getElementById('signupForm');
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const d = Object.fromEntries(new FormData(form));
+        StorageAPI.signup({ id: d.id, name: d.name, phone: d.phone, password: d.password });
+        alert('가입 완료');
+        location.href = '/login.html';
+      });
+    });
+  </script>
+</head>
+<body>
+  <header class="banner"><h1>내일의 발견</h1></header>
+  <div class="form-card">
+    <h2 class="form-title">회원가입</h2>
+    <form id="signupForm">
+      <label>ID</label>
+      <input name="id" required>
+      <label>이름</label>
+      <input name="name" required>
+      <label>전화번호</label>
+      <input name="phone">
+      <label>비밀번호</label>
+      <input name="password" type="password" required>
+      <div class="btn-row">
+        <button type="submit" style="padding:12px 24px;font-size:1.1rem;">가입</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
+
+

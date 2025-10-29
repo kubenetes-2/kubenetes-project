@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>나의공고찾기</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/storage.js"></script>
+  <script>
+    function unique(arr){ return Array.from(new Set(arr.filter(Boolean))); }
+    function option(text){ const o=document.createElement('option'); o.value=o.textContent=text; return o; }
+    function getFiltered(jobs, sels){
+      return jobs.filter(j =>
+        (sels.company.value==='전체'||j.company===sels.company.value) &&
+        (sels.size.value==='전체'||j.size===sels.size.value) &&
+        (sels.role.value==='전체'||j.role===sels.role.value) &&
+        (sels.tech.value==='전체'||j.techStack===sels.tech.value)
+      );
+    }
+    function render(){
+      const jobs = StorageAPI.getJobs();
+      const sels = {
+        company: document.getElementById('fCompany'),
+        size: document.getElementById('fSize'),
+        role: document.getElementById('fRole'),
+        tech: document.getElementById('fTech'),
+      };
+      // populate once
+      if (!sels.company.options.length){
+        sels.company.append(option('전체'));
+        for (const v of unique(jobs.map(j=>j.company))) sels.company.append(option(v));
+        sels.size.append(option('전체'));
+        for (const v of unique(jobs.map(j=>j.size))) sels.size.append(option(v));
+        sels.role.append(option('전체'));
+        for (const v of unique(jobs.map(j=>j.role))) sels.role.append(option(v));
+        sels.tech.append(option('전체'));
+        for (const v of unique(jobs.map(j=>j.techStack))) sels.tech.append(option(v));
+      }
+      const list = document.getElementById('result');
+      list.innerHTML='';
+      const current = StorageAPI.currentUser();
+      const saved = new Set(StorageAPI.getSaved(current?.id));
+      const filtered = getFiltered(jobs, sels);
+      for (const j of filtered){
+        const li = document.createElement('li');
+        const text = document.createElement('span');
+        text.textContent = `${j.title} / ${j.company} / ${j.role} / ${j.endDate}`;
+        const btn = document.createElement('button');
+        const isSaved = saved.has(j.id);
+        btn.textContent = isSaved ? '저장취소' : '저장';
+        btn.className = 'new-post-btn';
+        btn.style.marginLeft = '10px';
+        btn.style.padding = '6px 10px';
+        btn.onclick = () => {
+          if (saved.has(j.id)) {
+            StorageAPI.unsaveJob(current?.id, j.id);
+          } else {
+            StorageAPI.saveJob(current?.id, j.id);
+          }
+          render();
+        };
+        li.appendChild(text);
+        li.appendChild(btn);
+        list.appendChild(li);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+      for (const id of ['fCompany','fSize','fRole','fTech']){
+        document.getElementById(id).addEventListener('change', render);
+      }
+      // save all filtered results button
+      const saveAll = document.getElementById('saveAll');
+      saveAll.addEventListener('click', function(){
+        const jobs = StorageAPI.getJobs();
+        const sels = {
+          company: document.getElementById('fCompany'),
+          size: document.getElementById('fSize'),
+          role: document.getElementById('fRole'),
+          tech: document.getElementById('fTech'),
+        };
+        const filtered = getFiltered(jobs, sels);
+        const current = StorageAPI.currentUser();
+        for (const j of filtered) {
+          StorageAPI.saveJob(current?.id, j.id);
+        }
+        render();
+        alert('현재 결과를 저장했습니다.');
+      });
+      render();
+    });
+  </script>
+</head>
+<body>
+  <header class="banner"><h1>내일의 발견</h1></header>
+  <main class="dashboard" style="grid-template-columns:1fr;">
+    <section class="left-panel" style="position:relative;">
+      <h2>나의 공고 찾기</h2>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+        <select id="fCompany"></select>
+        <select id="fSize"></select>
+        <select id="fRole"></select>
+        <select id="fTech"></select>
+      </div>
+      <ul id="result" style="margin-top:16px;"></ul>
+      <div style="margin-top:12px;"><a class="btn" href="/">메인으로</a></div>
+      <button id="saveAll" class="new-post-btn" style="position:absolute;right:16px;bottom:16px;padding:12px 20px;font-size:1.05rem;">저장</button>
+    </section>
+  </main>
+  
+</body>
+</html>
+
+

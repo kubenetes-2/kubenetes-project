@@ -20,14 +20,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        try {
-            // FE가 /api 를 백엔드로 프록시하므로 상대경로 사용
-            await axios.post('/api/jobs', payload, { timeout: 6000 });
+        const created = StorageAPI.addJob(payload);
+        if (created) {
             alert('등록되었습니다.');
             location.href = '/';
-        } catch (e) {
-            console.error(e);
-            alert('등록 중 오류가 발생했습니다.');
+        } else {
+            alert('등록 실패');
         }
     });
 });

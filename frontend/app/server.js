@@ -31,6 +31,22 @@ app.get('/edit', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'edit.html'));
 });
 
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/signup', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'signup.html'));
+});
+
+app.get('/search', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'search.html'));
+});
+
+app.get('/history', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'history.html'));
+});
+
 // 간단 헬스
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 

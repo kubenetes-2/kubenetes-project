@@ -13,8 +13,18 @@ body {
   color: white;
   padding: 1rem;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  position: relative;
 }
 .banner h1 { margin: 0; font-size: 2rem; }
+
+/* Center title while keeping right-side actions */
+.banner .title-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+}
 
 .dashboard {
   display: grid;
@@ -238,3 +248,90 @@ body {
   text-decoration: underline;
 }
 
+
+/* ==== Sidebar equal buttons ==== */
+.sidebar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+/* ==== Filters in job list ==== */
+.right-panel select {
+  padding: 10px 12px;
+  font-size: 1.05rem;
+  height: 44px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+/* search.html uses left-panel as main container */
+.left-panel select {
+  padding: 12px 14px;
+  font-size: 1.08rem;
+  height: 48px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px 10px;
+}
+
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #10b981;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  height: 36px;
+  line-height: 1;
+}
+
+.logout-btn {
+  margin-left: 8px;
+  background: #ef4444;
+  color: #fff;
+  border: 0;
+  border-radius: 20px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  height: 36px;
+  line-height: 1;
+}
+.logout-btn:hover { background: #dc2626; }
+
+/* Make auth chips same visual size */
+.user-badge, .logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 110px; /* exact same width */
+  box-sizing: border-box;
+}
+/* 공통: 배너 글씨 하얗게 */
+.banner h1,
+.banner .title-center {
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+/* 중앙정렬용: .title-center는 position 그대로 유지 */
+.banner .title-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
