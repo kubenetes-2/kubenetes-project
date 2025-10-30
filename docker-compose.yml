@@ -1,21 +1,31 @@
-version: '3.8'
-
 services:
   # MongoDB 데이터베이스
   mongodb:
     image: mongo:7.0
     container_name: gb_mongodb
     restart: unless-stopped
+    # Bind container's MongoDB port to host 27018 to avoid colliding with a
+    # local Windows MongoDB service that may already be listening on 27017.
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongodb_data:/data/db
     environment:
       MONGO_INITDB_DATABASE: jobsdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - guestbook_network
 
   # 백엔드 API 서버
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: gb_backend
     restart: unless-stopped
     ports:
@@ -23,11 +33,22 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8000
-      MONGO_URI: mongodb://gb_mongodb:27017/jobsdb
+      MONGO_URI: mongodb://mongodb:27017/jobsdb
+      JWT_SECRET: your_jwt_secret_key
+      # Work24 OpenAPI 설정 (아래 값을 실제 API 엔드포인트로 교체하세요)
+      WORK24_KEY: "184d5b92-d9ef-4629-b9dc-1947635119ac"
+      # Work24 OpenAPI 호출 URL (주신 엔드포인트)
+      WORK24_BASE_URL: "https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L31.do"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
-      - app-network
+      - guestbook_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8000/api/health', (res) => { if (res.statusCode === 200) process.exit(0); console.error(res.statusCode); process.exit(1); }).on('error', (err) => { console.error(err); process.exit(1); });"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # 프론트엔드 웹 서버
   frontend:
@@ -43,11 +64,12 @@ services:
     depends_on:
       - backend
     networks:
-      - app-network
+      - guestbook_network
 
 volumes:
   mongodb_data:
+    name: mongodb_data
 
 networks:
-  app-network:
+  guestbook_network:
     driver: bridge

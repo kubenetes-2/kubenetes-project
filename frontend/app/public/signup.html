@@ -10,18 +10,44 @@
   <script>
     document.addEventListener('DOMContentLoaded', function(){
       const form = document.getElementById('signupForm');
-      form.addEventListener('submit', function(e){
+      form.addEventListener('submit', async function(e){
         e.preventDefault();
-        const d = Object.fromEntries(new FormData(form));
-        StorageAPI.signup({ id: d.id, name: d.name, phone: d.phone, password: d.password });
-        alert('가입 완료');
-        location.href = '/login.html';
+        
+        const formData = new FormData(form);
+        const data = {
+          username: formData.get('id'),
+          name: formData.get('name'),
+          phone: formData.get('phone'),
+          password: formData.get('password')
+        };
+
+        try {
+          const response = await fetch('http://localhost:8000/api/auth/signup', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+          });
+
+          const result = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(result.message || '회원가입에 실패했습니다.');
+          }
+
+          alert('회원가입이 완료되었습니다. 로그인해주세요.');
+          location.href = '/login.html';
+        } catch (error) {
+          console.error('회원가입 오류:', error);
+          alert(error.message || '회원가입 중 오류가 발생했습니다.');
+        }
       });
     });
   </script>
 </head>
 <body>
-  <header class="banner"><h1>내일의 발견</h1></header>
+  <header class="banner"><h1><a href="/" style="color:inherit;text-decoration:none;">내일의 발견</a></h1></header>
   <div class="form-card">
     <h2 class="form-title">회원가입</h2>
     <form id="signupForm">

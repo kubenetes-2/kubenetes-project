@@ -1,169 +1,199 @@
-// 메인 애플리케이션 JavaScript
-let currentMonth = new Date();
+// Work24 채용공고 API(210L21) 엔드포인트 및 테이블 뿌리기
+const COMPANY_TYPE = {
+  "10": "대기업", "20": "공기업", "30": "공공기관", "40": "중견기업", "50": "외국계기업"
+};
+const WANTED_TYPE = {
+  "10": "정규직", "20": "정규직전환", "30": "비정규직",
+  "40": "기간제", "50": "시간선택제", "60": "기타"
+};
+// 경력/학력은 미제공 빈도가 높아 필터에서 제외
 
-function fetchJobs() {
-    return (window.StorageAPI && StorageAPI.getJobs()) || [];
+function mapValue(table, value) {
+  if (!value || value === "-") return "-";
+  // 테이블이 없으면 원본 값을 그대로 사용
+  if (!table) {
+    return value.split("|").join(", ");
+  }
+  return value.split("|").map(v => (table && table[v]) ? table[v] : v).join(", ");
 }
 
-function renderCalendar(jobs = []) {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    document.getElementById('monthTitle').innerText = `${year}년 ${month + 1}월`;
-
-    const firstDay = new Date(year, month, 1).getDay();
-    const lastDate = new Date(year, month + 1, 0).getDate();
-    const tbody = document.getElementById('calendarBody');
-    tbody.innerHTML = '';
-
-    let row = document.createElement('tr');
-
-    for (let i = 0; i < firstDay; i++) {
-        row.appendChild(document.createElement('td'));
-    }
-
-    for (let day = 1; day <= lastDate; day++) {
-        const cell = document.createElement('td');
-        cell.textContent = day;
-
-        const job = jobs.find(j => {
-            const end = new Date(j.endDate || j.deadline);
-            return end.getFullYear() === year && end.getMonth() === month && end.getDate() === day;
-        });
-
-        if (job) {
-            cell.style.backgroundColor = '#fff3cd';
-            cell.style.fontWeight = 'bold';
-            cell.innerHTML = `🚩<br>${job.company || ''}`;
-        }
-
-        row.appendChild(cell);
-        if ((firstDay + day) % 7 === 0 || day === lastDate) {
-            tbody.appendChild(row);
-            row = document.createElement('tr');
-        }
-    }
+// 제목에서 경력/학력 키워드 추론 (전역에서 재사용)
+function guessFromTitle(title) {
+  const t = (title || '').toLowerCase();
+  let career = '';
+  if (/[\(\s\[]?신입[\)\s\]]?/.test(t)) career = '신입';
+  if (/인턴/.test(t)) career = '인턴';
+  if (/경력무관|무관/.test(t)) career = '무관';
+  if (/경력/.test(t) && !career) career = '경력';
+  let edu = '';
+  if (/학력무관/.test(t)) edu = '학력무관';
+  else if (/고졸/.test(t)) edu = '고졸';
+  else if (/대졸\(2~3\)|초대졸|전문대/.test(t)) edu = '대졸(2~3)';
+  else if (/대졸/.test(t)) edu = '대졸';
+  else if (/석사/.test(t)) edu = '석사';
+  else if (/박사/.test(t)) edu = '박사';
+  return { career, edu };
 }
 
-function renderJobsTable(jobs = []) {
+function normalizeCareer(value){
+  if (!value) return '';
+  const v = String(value).trim();
+  if (v === '-') return '';
+  // 통일 표기: 경력무관/무관 -> 무관
+  if (v === '경력무관' || v === '무관') return '무관';
+  return v;
+}
+
+function normalizeEdu(value){
+  if (!value) return '';
+  const v = String(value).trim();
+  if (v === '-') return '';
+  if (v === '초대졸' || v === '전문대') return '대졸(2~3)';
+  return v;
+}
+
+function getCareer(j){
+  const fromApi = normalizeCareer(j.empWantedCareerCd);
+  if (fromApi) return fromApi;
+  return normalizeCareer(guessFromTitle(j.empWantedTitle).career);
+}
+
+function getEdu(j){
+  const fromApi = normalizeEdu(j.empWantedEduCd);
+  if (fromApi) return fromApi;
+  return normalizeEdu(guessFromTitle(j.empWantedTitle).edu);
+}
+
+let allJobs = [];
+let filters = { coClcd: '', empWantedTypeCd: '', company: '', titleKeyword: '' };
+let currentPage = 1;
+const pageSize = 10;
+
+// 동적으로 필터 UI 생성 & 이벤트 바인드
+function renderFilters(jobs) {
+  const unique = (arr) => [...new Set(arr.filter(x => x && x !== '-'))].sort();
+  const $thead = document.querySelector('.job-table thead');
+  if (!$thead || !jobs.length) return;
+  let filterRow = document.querySelector('#filterRow');
+  if (filterRow) filterRow.remove();
+
+  // 각각의 select option 배열 만들기
+  const companyTypes = unique(jobs.map(j => j.coClcd));
+  const wantedTypes = unique(jobs.map(j => j.empWantedTypeCd));
+  const companies = unique(jobs.map(j => j.company));
+  // 경력/학력 옵션 (우선 고정 옵션을 사용하고, API/추론 값은 보조로 병합)
+  const CAREER_OPTIONS = ['신입', '인턴', '무관', '경력'];
+  const EDU_OPTIONS = ['학력무관', '고졸', '대졸(2~3)', '초대졸', '전문대', '대졸', '석사', '박사'];
+  const careers = unique([...CAREER_OPTIONS, ...jobs.map(j => j.empWantedCareerCd || guessFromTitle(j.empWantedTitle).career)]);
+  const edus = unique([...EDU_OPTIONS, ...jobs.map(j => j.empWantedEduCd || guessFromTitle(j.empWantedTitle).edu)]);
+
+  const selectHtml = (id, options, table) => `
+    <select id="${id}" style="width:100%;padding:4px;">
+      <option value="">전체</option>
+      ${options.map(val => `<option value="${val}">${mapValue(table, val)}</option>`).join('')}
+    </select>
+  `;
+
+  const html = `
+    <tr id="filterRow">
+      <td>${selectHtml('fCompany', companyTypes, COMPANY_TYPE)}</td>
+      <td>${selectHtml('fWanted', wantedTypes, WANTED_TYPE)}</td>
+      <td>${selectHtml('fCompanyName', companies)}</td>
+      <td><input id="qTitle" type="text" placeholder="공고명 검색" style="width:85%;min-width:320px;height:36px;padding:6px 10px;"></td>
+      <td>${selectHtml('fCareer', careers)}</td>
+      <td>${selectHtml('fEdu', edus)}</td>
+    </tr>
+  `;
+  $thead.insertAdjacentHTML('afterend', html);
+
+  // 이벤트 연결
+  document.getElementById('fCompany').onchange = (e) => { filters.coClcd = e.target.value; currentPage = 1; renderJobsTable(); };
+  document.getElementById('fWanted').onchange = (e) => { filters.empWantedTypeCd = e.target.value; currentPage = 1; renderJobsTable(); };
+  document.getElementById('fCompanyName').onchange = (e) => { filters.company = e.target.value; currentPage = 1; renderJobsTable(); };
+  const fCareer = document.getElementById('fCareer');
+  const fEdu = document.getElementById('fEdu');
+  fCareer.onchange = (e) => { filters.career = normalizeCareer(e.target.value); currentPage = 1; renderJobsTable(); };
+  fEdu.onchange = (e) => { filters.edu = normalizeEdu(e.target.value); currentPage = 1; renderJobsTable(); };
+  const titleInp = document.getElementById('qTitle');
+  titleInp.oninput = () => { filters.titleKeyword = (titleInp.value||'').trim().toLowerCase(); currentPage = 1; renderJobsTable(); };
+}
+
+function formatDate(yyyymmdd){
+  if (!yyyymmdd || yyyymmdd.length !== 8) return '-';
+  return `${yyyymmdd.slice(0,4)}-${yyyymmdd.slice(4,6)}-${yyyymmdd.slice(6,8)}`;
+}
+
+function renderPager(total) {
+  const pager = document.getElementById('pager');
+  if (!pager) return;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  let html = '';
+  for (let p = 1; p <= totalPages; p++) {
+    html += `<button data-page="${p}" class="new-post-btn" style="padding:6px 10px;${p===currentPage?'background:#2b49c7;color:#fff;':''}">${p}</button>`;
+  }
+  pager.innerHTML = html;
+  pager.querySelectorAll('button').forEach(btn => btn.onclick = (e) => {
+    currentPage = Number(e.currentTarget.dataset.page);
+    renderJobsTable();
+  });
+}
+
+function renderJobsTable() {
+  const tbody = document.getElementById('jobTbody');
+  if (!tbody) return;
+  let jobs = allJobs;
+  // 필터 적용
+  jobs = jobs.filter(j =>
+    (!filters.coClcd || j.coClcd === filters.coClcd) &&
+    (!filters.empWantedTypeCd || j.empWantedTypeCd === filters.empWantedTypeCd) &&
+    (!filters.company || j.company === filters.company) &&
+    (!filters.titleKeyword || (j.empWantedTitle || '').toLowerCase().includes(filters.titleKeyword)) &&
+    (!filters.career || getCareer(j) === filters.career) &&
+    (!filters.edu || getEdu(j) === filters.edu)
+  );
+
+  const total = jobs.length;
+  const start = (currentPage - 1) * pageSize;
+  const pageItems = jobs.slice(start, start + pageSize);
+
+  tbody.innerHTML = pageItems.length ? pageItems.map(job => `
+    <tr>
+      <td>${mapValue(COMPANY_TYPE, job.coClcd)}</td>
+      <td>${mapValue(WANTED_TYPE, job.empWantedTypeCd)}</td>
+      <td>${job.company || '-'}</td>
+      <td>
+        ${job.homeUrl ? `<a href="${job.homeUrl}" target="_blank" rel="noopener noreferrer">${job.empWantedTitle || '-'}</a>` : (job.empWantedTitle || '-')}
+      </td>
+      <td>${getCareer(job) || '-'}</td>
+      <td>${getEdu(job) || '-'}</td>
+      <td>${job.logo ? `<img src="${job.logo}" alt="logo" style="height:24px;">` : '-'}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="7">채용공고 없음</td></tr>';
+
+  renderPager(total);
+}
+
+async function fetchAndRenderWantedList() {
     const tbody = document.getElementById('jobTbody');
     if (!tbody) return;
-    tbody.innerHTML = '';
-    const current = StorageAPI.currentUser();
-    const saved = StorageAPI.getSaved(current?.id);
-    if (!jobs.length) {
-        const tr = document.createElement('tr');
-        const td = document.createElement('td');
-        td.colSpan = 9;
-        td.textContent = '공고가 없습니다. 우측 상단에서 등록하세요.';
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-        return;
-    }
-    for (const j of jobs) {
-        const tr = document.createElement('tr');
-        const cells = [j.title, j.company, j.size, j.address, j.role, j.techStack, j.career, j.salary, j.endDate];
-        for (const c of cells) {
-            const td = document.createElement('td');
-            td.textContent = c || '-';
-            tr.appendChild(td);
+    tbody.innerHTML = '<tr><td colspan="7">불러오는 중...</td></tr>';
+    try {
+        // 프론트 익스프레스에서 직접 Work24를 프록시함
+        const res = await fetch('/work24?perPage=100');
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP ${res.status} ${res.statusText} - ${text.slice(0,200)}`);
         }
-        // actions cell appended as last column overlay (add save/edit buttons)
-        const actionTd = document.createElement('td');
-        const isSaved = saved.includes(j.id);
-        const saveBtn = document.createElement('button');
-        saveBtn.textContent = isSaved ? '저장취소' : '저장';
-        saveBtn.addEventListener('click', () => {
-            const userId = current?.id;
-            if (isSaved) {
-                StorageAPI.unsaveJob(userId, j.id);
-            } else {
-                StorageAPI.saveJob(userId, j.id);
-            }
-            renderJobsTable(StorageAPI.getJobs());
-        });
-        const editLink = document.createElement('a');
-        editLink.href = `/edit?id=${j.id}`;
-        editLink.style.marginLeft = '8px';
-        editLink.textContent = '수정';
-        actionTd.appendChild(saveBtn);
-        actionTd.appendChild(editLink);
-        tr.appendChild(actionTd);
-        tbody.appendChild(tr);
+        const payload = await res.json();
+        allJobs = payload.jobs || [];
+        renderFilters(allJobs);
+        renderJobsTable();
+    } catch(e) {
+        console.error('Work24 fetch error:', e);
+        tbody.innerHTML = `<tr><td colspan="7">불러오기 실패: ${String(e).replace(/</g,'&lt;')}</td></tr>`;
     }
 }
 
-// In-page filter controls
-function attachFilters(jobs){
-    const sels = {
-        company: document.getElementById('fCompany'),
-        size: document.getElementById('fSize'),
-        role: document.getElementById('fRole'),
-        tech: document.getElementById('fTech'),
-    };
-    if (!sels.company) return;
-    const unique = arr => Array.from(new Set(arr.filter(Boolean)));
-    const fill = (sel, list, label) => {
-        if (sel.options.length) return;
-        const all = document.createElement('option'); all.value = '전체'; all.textContent = '전체'; sel.appendChild(all);
-        for (const v of unique(list)) { const o=document.createElement('option'); o.value=o.textContent=v; sel.appendChild(o); }
-    };
-    fill(sels.company, jobs.map(j=>j.company));
-    fill(sels.size, jobs.map(j=>j.size));
-    fill(sels.role, jobs.map(j=>j.role));
-    fill(sels.tech, jobs.map(j=>j.techStack));
-
-    const apply = () => {
-        const filtered = jobs.filter(j =>
-            (sels.company.value==='전체'||!sels.company.value||j.company===sels.company.value) &&
-            (sels.size.value==='전체'||!sels.size.value||j.size===sels.size.value) &&
-            (sels.role.value==='전체'||!sels.role.value||j.role===sels.role.value) &&
-            (sels.tech.value==='전체'||!sels.tech.value||j.techStack===sels.tech.value)
-        );
-        renderJobsTable(filtered);
-    };
-    for (const s of Object.values(sels)) { if (s) s.addEventListener('change', apply); }
-    apply();
-}
-
-function renderUser(user) {
-    document.getElementById('displayName').textContent = user.name || '-';
-    document.getElementById('displayEmail').textContent = user.email || '-';
-    document.getElementById('displayPhone').textContent = user.phone || '-';
-}
-
-function saveUser() {
-    const payload = {
-        name: document.getElementById('name').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-    };
-    const u = StorageAPI.saveUser(payload);
-    renderUser(u);
-    alert('저장 완료');
-}
-
-// 이벤트 리스너 등록
-document.addEventListener('DOMContentLoaded', function() {
-    // 버튼 이벤트 (로컬 저장)
-    document.getElementById('registerBtn').addEventListener('click', saveUser);
-    document.getElementById('updateBtn').addEventListener('click', saveUser);
-
-    // 달력 네비게이션
-    document.getElementById('prevMonth').addEventListener('click', async () => {
-        currentMonth.setMonth(currentMonth.getMonth() - 1);
-        renderCalendar(fetchJobs());
-    });
-    
-    document.getElementById('nextMonth').addEventListener('click', async () => {
-        currentMonth.setMonth(currentMonth.getMonth() + 1);
-        renderCalendar(fetchJobs());
-    });
-
-    // 초기 로드
-    const user = StorageAPI.getUser();
-    renderUser(user);
-    const jobs = fetchJobs();
-    // 달력은 현재 레이아웃에서는 사용하지 않지만, 데이터 기반 강조는 남겨 둠
-    // renderCalendar(jobs);
-    attachFilters(jobs);
+window.addEventListener('DOMContentLoaded', () => {
+    fetchAndRenderWantedList();
 });

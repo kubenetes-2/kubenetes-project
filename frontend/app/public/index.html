@@ -6,10 +6,12 @@
     <title>내일의 발견</title>
     <link rel="stylesheet" href="/css/style.css">
     <script src="/js/storage.js"></script>
+    <style>
+    </style>
 </head>
 <body>
     <header class="banner" style="display:flex;align-items:center;justify-content:flex-end;">
-        <h1 class="title-center">내일의 발견</h1>
+        <h1 class="title-center"><a href="/" style="color:inherit;text-decoration:none;">내일의 발견</a></h1>
         <nav id="authNav"></nav>
     </header>
 
@@ -25,32 +27,24 @@
 
         <!-- 오른쪽: 필터 + 리스트 -->
         <section class="right-panel">
-            <div class="job-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="job-header" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                 <h2>채용 공고 리스트</h2>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px;">
-                <select id="fCompany"></select>
-                <select id="fSize"></select>
-                <select id="fRole"></select>
-                <select id="fTech"></select>
             </div>
             <table class="job-table" style="margin-top:12px;">
                 <thead>
                     <tr>
-                        <th>공고명</th>
+                        <th>기업구분</th>
+                        <th>고용형태</th>
                         <th>기업명</th>
-                        <th>기업규모</th>
-                        <th>주소</th>
-                        <th>직무</th>
-                        <th>기술스택</th>
+                        <th>공고명</th>
                         <th>경력</th>
-                        <th>연봉 및 급여</th>
-                        <th>마감일</th>
-                        <th></th>
+                        <th>학력</th>
+                        <th>로고</th>
                     </tr>
                 </thead>
                 <tbody id="jobTbody"></tbody>
             </table>
+            <div id="pager" style="margin-top:12px; display:flex; gap:8px;"></div>
         </section>
     </main>
 

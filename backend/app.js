@@ -2,17 +2,38 @@
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://gb_mongodb:27017/jobsdb';
+// Allow using provided MONGO_URI (for docker). Default to localhost for
+// local development so running `node app.js` works without docker.
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/jobsdb';
 const PORT = process.env.PORT || 8000;
 
 const app = express();
 
 // 미들웨어
-app.use(cors());
+// CORS: allow the frontend origin in production, but be permissive during
+// local development (convenience). You can set FRONTEND_ORIGIN env var
+// or rely on docker-compose to wire correct networking.
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow requests with no origin (curl, mobile apps, local files)
+    if (!origin) return callback(null, true);
+    if (process.env.NODE_ENV === 'production') {
+      // in production only allow the explicitly set frontend origin
+      if (origin === FRONTEND_ORIGIN) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    }
+    // development: allow any origin for convenience
+    return callback(null, true);
+  },
+  credentials: true
+}));
 app.use(express.urlencoded({ extended: true })); // HTML form (x-www-form-urlencoded)
 app.use(express.json());                         // JSON
+app.use(cookieParser());                         // 쿠키 파서
 
 // DB
 mongoose.set('strictQuery', true);
@@ -40,6 +61,14 @@ const jobSchema = new mongoose.Schema(
   { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } }
 );
 const Job = mongoose.model('Job', jobSchema);
+
+// 라우터 가져오기
+const authRoutes = require('./routes/auth');
+const work24Router = require('./routes/work24');
+
+// 라우트 설정
+app.use('/api/auth', authRoutes);
+app.use('/api/import/work24', work24Router);
 
 // 바디 키 보정(안전)
 function pick(body, keys, fallback = '') {
