@@ -70,7 +70,7 @@
       
       try {
         // 백엔드 API에서 즐겨찾기 목록 가져오기
-        const res = await fetch('http://localhost:8000/api/favorites', {
+        const res = await fetch('/api/favorites', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -112,7 +112,7 @@
           btn.className = 'new-post-btn';
           btn.onclick = async () => {
             try {
-              const deleteRes = await fetch(`http://localhost:8000/api/favorites/${fav.jobSeq}`, {
+              const deleteRes = await fetch(`/api/favorites/${fav.jobSeq}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${token}`
@@ -141,7 +141,7 @@
   </script>
 </head>
 <body>
-  <header class="banner"><h1><a href="/" style="color:inherit;text-decoration:none;">내일의 발견</a></h1></header>
+    <header class="banner"><h1><a href="/" style="color:inherit;text-decoration:none;">내일의 발견</a></h1></header>
   <main class="dashboard" style="grid-template-columns:1fr;">
     <section class="left-panel">
       <h2>저장내역 조회 (즐겨찾기)</h2>

@@ -44,6 +44,44 @@ docker-compose down
 - **백엔드 API**: http://localhost:8000
 - **MongoDB**: localhost:27017
 
+## Harbor 배포
+
+### 1. 로컬에서 이미지 빌드 및 Harbor에 푸시
+
+```bash
+# Harbor 로그인 (192.168.0.208에 Harbor가 있다고 가정)
+docker login 192.168.0.208
+
+# 이미지 빌드
+docker-compose build
+
+# 이미지 태깅
+docker tag project-fixed-backend:latest 192.168.0.208/project-fixed-backend:latest
+docker tag project-fixed-frontend:latest 192.168.0.208/project-fixed-frontend:latest
+
+# Harbor에 푸시
+docker push 192.168.0.208/project-fixed-backend:latest
+docker push 192.168.0.208/project-fixed-frontend:latest
+```
+
+### 2. 서버에서 Harbor 이미지 사용
+
+서버에서 `docker-compose.yml`을 Harbor 이미지를 사용하도록 수정하거나, 직접 pull 후 실행:
+
+```bash
+# Harbor 로그인
+docker login 192.168.0.208
+
+# 이미지 pull
+docker pull 192.168.0.208/project-fixed-backend:latest
+docker pull 192.168.0.208/project-fixed-frontend:latest
+
+# docker-compose 실행 (build 대신 image 사용)
+docker-compose up -d
+```
+
+또는 `docker-compose.yml`에서 `build` 대신 `image`를 사용하도록 수정할 수 있습니다.
+
 ## 주요 기능
 
 1. **채용공고 관리**

@@ -85,8 +85,8 @@ async function toggleFavorite(jobSeq) {
   try {
     const isSaved = await isFavorite(jobSeq);
     const url = isSaved 
-      ? `http://localhost:8000/api/favorites/${jobSeq}`
-      : 'http://localhost:8000/api/favorites';
+      ? `/api/favorites/${jobSeq}`
+      : '/api/favorites';
     const method = isSaved ? 'DELETE' : 'POST';
     
     // 즐겨찾기 추가 시 공고 정보도 함께 전송
@@ -137,7 +137,7 @@ async function isFavorite(jobSeq) {
   
   // 로그인한 경우 백엔드 API 호출
   try {
-    const response = await fetch(`http://localhost:8000/api/favorites/check/${jobSeq}`, {
+    const response = await fetch(`/api/favorites/check/${jobSeq}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

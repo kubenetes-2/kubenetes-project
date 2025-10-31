@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
-// JWT 시크릿 키 (반드시 환경변수로 관리해야 함)
-const JWT_SECRET = 'your_jwt_secret_key';
+// JWT 시크릿 키 (환경변수에서 가져오기)
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 // 인증 미들웨어
 const auth = (req, res, next) => {
@@ -10,7 +10,7 @@ const auth = (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
     
     if (!token) {
-      return res.status(401).json({ message: '인증 토큰이 없습니다.' });
+      return res.status(401).json({ ok: false, message: '인증 토큰이 없습니다.' });
     }
 
     // 토큰 검증
@@ -19,13 +19,15 @@ const auth = (req, res, next) => {
     next();
   } catch (error) {
     console.error('인증 오류:', error);
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: '토큰이 만료되었습니다.' });
+    if (!res.headersSent) {
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ ok: false, message: '토큰이 만료되었습니다.' });
+      }
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ ok: false, message: '유효하지 않은 토큰입니다.' });
+      }
+      res.status(500).json({ ok: false, message: '인증 처리 중 오류가 발생했습니다.', error: error.message });
     }
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ message: '유효하지 않은 토큰입니다.' });
-    }
-    res.status(500).json({ message: '인증 처리 중 오류가 발생했습니다.' });
   }
 };
 

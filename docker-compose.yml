@@ -4,10 +4,9 @@ services:
     image: mongo:7.0
     container_name: gb_mongodb
     restart: unless-stopped
-    # Bind container's MongoDB port to host 27018 to avoid colliding with a
-    # local Windows MongoDB service that may already be listening on 27017.
+    # MongoDB 포트 매핑 (로컬 개발용은 27018, 서버 배포는 27017 사용 권장)
     ports:
-      - "27018:27017"
+      - "${MONGO_PORT:-27017}:27017"
     volumes:
       - mongodb_data:/data/db
     environment:
@@ -29,16 +28,17 @@ services:
     container_name: gb_backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     environment:
       NODE_ENV: production
       PORT: 8000
       MONGO_URI: mongodb://mongodb:27017/jobsdb
-      JWT_SECRET: your_jwt_secret_key
-      # Work24 OpenAPI 설정 (아래 값을 실제 API 엔드포인트로 교체하세요)
-      WORK24_KEY: "184d5b92-d9ef-4629-b9dc-1947635119ac"
-      # Work24 OpenAPI 호출 URL (주신 엔드포인트)
-      WORK24_BASE_URL: "https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L31.do"
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key_change_this_in_production}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://192.168.0.208:3000}
+      # Work24 OpenAPI 설정
+      WORK24_KEY: ${WORK24_KEY:-184d5b92-d9ef-4629-b9dc-1947635119ac}
+      WORK24_BASE_URL: ${WORK24_BASE_URL:-https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L21.do}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -52,17 +52,21 @@ services:
 
   # 프론트엔드 웹 서버
   frontend:
-    build: ./frontend/app
+    build: 
+      context: ./frontend/app
+      dockerfile: Dockerfile
     container_name: gb_frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       BACKEND_URL: http://backend:8000
+      WORK24_API_KEY: ${WORK24_KEY:-184d5b92-d9ef-4629-b9dc-1947635119ac}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - guestbook_network
 

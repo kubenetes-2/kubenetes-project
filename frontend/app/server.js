@@ -63,8 +63,13 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:8000';
 app.use('/api', createProxyMiddleware({
   target: BACKEND_URL,
   changeOrigin: true,
-  pathRewrite: {
-    '^/api': '/api'
+  // http-proxy-middleware는 app.use('/api', ...)에서 자동으로 /api prefix를 제거함
+  // 따라서 pathRewrite에서 /api를 다시 추가해야 함
+  pathRewrite: function (path, req) {
+    // /api/auth/login -> /auth/login (prefix 제거됨) -> /api/auth/login (다시 추가)
+    const rewritten = '/api' + path;
+    console.log(`[Proxy] pathRewrite: ${path} -> ${rewritten}`);
+    return rewritten;
   }
 }));
 
@@ -74,14 +79,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 // HTML 페이지 라우팅
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/new', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'new.html'));
-});
-
-app.get('/edit', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'edit.html'));
 });
 
 app.get('/login', (req, res) => {

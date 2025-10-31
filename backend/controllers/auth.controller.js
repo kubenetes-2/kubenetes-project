@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 
-// JWT 시크릿 키 (실제 환경에서는 환경변수로 관리해야 합니다)
-const JWT_SECRET = 'your_jwt_secret_key';
+// JWT 시크릿 키 (환경변수에서 가져오기)
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 // 회원가입
 const signup = async (req, res) => {
@@ -43,7 +43,31 @@ const signup = async (req, res) => {
     });
   } catch (error) {
     console.error('회원가입 오류:', error);
-    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+    console.error('에러 스택:', error.stack);
+    // 항상 JSON 반환 보장
+    if (!res.headersSent) {
+      // Mongoose validation error 처리
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(e => e.message);
+        return res.status(400).json({ 
+          ok: false,
+          message: messages.join(', ') || '입력 데이터가 올바르지 않습니다.',
+          error: error.message 
+        });
+      }
+      // 중복 사용자 오류
+      if (error.code === 11000) {
+        return res.status(400).json({ 
+          ok: false,
+          message: '이미 존재하는 아이디입니다.'
+        });
+      }
+      res.status(500).json({ 
+        ok: false,
+        message: '서버 오류가 발생했습니다.',
+        error: error.message 
+      });
+    }
   }
 };
 
@@ -82,7 +106,15 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('로그인 오류:', error);
-    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+    console.error('에러 스택:', error.stack);
+    // 항상 JSON 반환 보장
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        ok: false,
+        message: '서버 오류가 발생했습니다.',
+        error: error.message 
+      });
+    }
   }
 };
 

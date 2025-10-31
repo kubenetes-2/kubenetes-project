@@ -11,3 +11,4 @@ router.get('/check/:jobSeq', auth, favoriteController.checkFavorite); // 특정 
 
 module.exports = router;
 
+

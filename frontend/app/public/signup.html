@@ -22,13 +22,20 @@
         };
 
         try {
-          const response = await fetch('http://localhost:8000/api/auth/signup', {
+          const response = await fetch('/api/auth/signup', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(data)
           });
+
+          // Content-Type 확인
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`서버가 JSON을 반환하지 않았습니다. (${response.status}): ${text.substring(0, 100)}`);
+          }
 
           const result = await response.json();
           
@@ -43,8 +50,8 @@
           alert(error.message || '회원가입 중 오류가 발생했습니다.');
         }
       });
-    });
-  </script>
+      });
+    </script>
 </head>
 <body>
   <header class="banner"><h1><a href="/" style="color:inherit;text-decoration:none;">내일의 발견</a></h1></header>
@@ -57,8 +64,8 @@
       <input name="name" required>
       <label>전화번호</label>
       <input name="phone">
-      <label>비밀번호</label>
-      <input name="password" type="password" required>
+      <label>비밀번호 (최소 6자 이상)</label>
+      <input name="password" type="password" minlength="6" required>
       <div class="btn-row">
         <button type="submit" style="padding:12px 24px;font-size:1.1rem;">가입</button>
       </div>
