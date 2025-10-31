@@ -69,6 +69,92 @@ let filters = { coClcd: '', empWantedTypeCd: '', company: '', titleKeyword: '' }
 let currentPage = 1;
 const pageSize = 10;
 
+// 즐겨찾기 기능 (백엔드 API 사용)
+async function toggleFavorite(jobSeq) {
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  
+  // 로그인하지 않은 경우 즐겨찾기 기능 비활성화
+  if (!token || !user) {
+    alert('즐겨찾기 기능을 사용하려면 로그인이 필요합니다.');
+    window.location.href = '/login.html';
+    return;
+  }
+  
+  // 로그인한 경우 백엔드 API 호출
+  try {
+    const isSaved = await isFavorite(jobSeq);
+    const url = isSaved 
+      ? `http://localhost:8000/api/favorites/${jobSeq}`
+      : 'http://localhost:8000/api/favorites';
+    const method = isSaved ? 'DELETE' : 'POST';
+    
+    // 즐겨찾기 추가 시 공고 정보도 함께 전송
+    let bodyData = { jobSeq };
+    if (method === 'POST') {
+      const currentJob = allJobs.find(j => String(j.seq) === String(jobSeq));
+      if (currentJob) {
+        bodyData = {
+          jobSeq,
+          jobTitle: currentJob.empWantedTitle || '',
+          company: currentJob.company || '',
+          career: getCareer(currentJob) || '',
+          education: getEdu(currentJob) || '',
+          link: currentJob.homeUrl || ''
+        };
+      }
+    }
+    
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      ...(method === 'POST' ? { body: JSON.stringify(bodyData) } : {})
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || '즐겨찾기 처리 실패');
+    }
+    
+    renderJobsTable();
+  } catch (error) {
+    console.error('즐겨찾기 처리 오류:', error);
+    alert(error.message || '즐겨찾기 처리 중 오류가 발생했습니다.');
+  }
+}
+
+async function isFavorite(jobSeq) {
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  
+  // 로그인하지 않은 경우 항상 false 반환
+  if (!token || !user) {
+    return false;
+  }
+  
+  // 로그인한 경우 백엔드 API 호출
+  try {
+    const response = await fetch(`http://localhost:8000/api/favorites/check/${jobSeq}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      return false;
+    }
+    
+    const data = await response.json();
+    return data.isFavorite || false;
+  } catch (error) {
+    console.error('즐겨찾기 확인 오류:', error);
+    return false;
+  }
+}
+
 // 동적으로 필터 UI 생성 & 이벤트 바인드
 function renderFilters(jobs) {
   const unique = (arr) => [...new Set(arr.filter(x => x && x !== '-'))].sort();
@@ -97,11 +183,13 @@ function renderFilters(jobs) {
   const html = `
     <tr id="filterRow">
       <td>${selectHtml('fCompany', companyTypes, COMPANY_TYPE)}</td>
+      <td></td>
       <td>${selectHtml('fWanted', wantedTypes, WANTED_TYPE)}</td>
       <td>${selectHtml('fCompanyName', companies)}</td>
       <td><input id="qTitle" type="text" placeholder="공고명 검색" style="width:85%;min-width:320px;height:36px;padding:6px 10px;"></td>
       <td>${selectHtml('fCareer', careers)}</td>
       <td>${selectHtml('fEdu', edus)}</td>
+      <td></td>
     </tr>
   `;
   $thead.insertAdjacentHTML('afterend', html);
@@ -156,19 +244,33 @@ function renderJobsTable() {
   const start = (currentPage - 1) * pageSize;
   const pageItems = jobs.slice(start, start + pageSize);
 
-  tbody.innerHTML = pageItems.length ? pageItems.map(job => `
-    <tr>
-      <td>${mapValue(COMPANY_TYPE, job.coClcd)}</td>
-      <td>${mapValue(WANTED_TYPE, job.empWantedTypeCd)}</td>
-      <td>${job.company || '-'}</td>
-      <td>
-        ${job.homeUrl ? `<a href="${job.homeUrl}" target="_blank" rel="noopener noreferrer">${job.empWantedTitle || '-'}</a>` : (job.empWantedTitle || '-')}
-      </td>
-      <td>${getCareer(job) || '-'}</td>
-      <td>${getEdu(job) || '-'}</td>
-      <td>${job.logo ? `<img src="${job.logo}" alt="logo" style="height:24px;">` : '-'}</td>
-    </tr>
-  `).join('') : '<tr><td colspan="7">채용공고 없음</td></tr>';
+  // 각 공고의 즐겨찾기 상태를 비동기로 확인
+  const renderWithFavorites = async () => {
+    const rows = await Promise.all(pageItems.map(async (job) => {
+      const fav = await isFavorite(job.seq);
+      return `
+      <tr>
+        <td>${mapValue(COMPANY_TYPE, job.coClcd)}</td>
+        <td style="text-align:center;">
+          <button onclick="toggleFavorite('${job.seq}')" style="background:none;border:none;cursor:pointer;font-size:1.5rem;" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
+            ${fav ? '⭐' : '☆'}
+          </button>
+        </td>
+        <td>${mapValue(WANTED_TYPE, job.empWantedTypeCd)}</td>
+        <td>${job.company || '-'}</td>
+        <td>
+          ${job.homeUrl ? `<a href="${job.homeUrl}" target="_blank" rel="noopener noreferrer">${job.empWantedTitle || '-'}</a>` : (job.empWantedTitle || '-')}
+        </td>
+        <td>${getCareer(job) || '-'}</td>
+        <td>${getEdu(job) || '-'}</td>
+        <td>${job.logo ? `<img src="${job.logo}" alt="logo" style="height:24px;">` : '-'}</td>
+      </tr>
+    `;
+    }));
+    tbody.innerHTML = rows.join('') || '<tr><td colspan="8">채용공고 없음</td></tr>';
+  };
+  
+  renderWithFavorites();
 
   renderPager(total);
 }
@@ -176,7 +278,7 @@ function renderJobsTable() {
 async function fetchAndRenderWantedList() {
     const tbody = document.getElementById('jobTbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7">불러오는 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">불러오는 중...</td></tr>';
     try {
         // 프론트 익스프레스에서 직접 Work24를 프록시함
         const res = await fetch('/work24?perPage=100');
@@ -190,10 +292,14 @@ async function fetchAndRenderWantedList() {
         renderJobsTable();
     } catch(e) {
         console.error('Work24 fetch error:', e);
-        tbody.innerHTML = `<tr><td colspan="7">불러오기 실패: ${String(e).replace(/</g,'&lt;')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8">불러오기 실패: ${String(e).replace(/</g,'&lt;')}</td></tr>`;
     }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
     fetchAndRenderWantedList();
 });
+
+// 전역 함수로 노출 (onclick에서 사용)
+window.toggleFavorite = toggleFavorite;
+window.isFavorite = isFavorite;

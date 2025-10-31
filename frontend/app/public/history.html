@@ -7,24 +7,136 @@
   <link rel="stylesheet" href="/css/style.css">
   <script src="/js/storage.js"></script>
   <script>
-    function render(){
-      const current = StorageAPI.currentUser();
-      const ids = StorageAPI.getSaved(current?.id);
-      const jobs = StorageAPI.getJobs().filter(j=>ids.includes(j.id));
+    // Work24 채용공고 키워드 추론 (메인과 동일)
+    function guessFromTitle(title) {
+      const t = (title || '').toLowerCase();
+      let career = '';
+      if (/[\(\s\[]?신입[\)\s\]]?/.test(t)) career = '신입';
+      if (/인턴/.test(t)) career = '인턴';
+      if (/경력무관|무관/.test(t)) career = '무관';
+      if (/경력/.test(t) && !career) career = '경력';
+      let edu = '';
+      if (/학력무관/.test(t)) edu = '학력무관';
+      else if (/고졸/.test(t)) edu = '고졸';
+      else if (/대졸\(2~3\)|초대졸|전문대/.test(t)) edu = '대졸(2~3)';
+      else if (/대졸/.test(t)) edu = '대졸';
+      else if (/석사/.test(t)) edu = '석사';
+      else if (/박사/.test(t)) edu = '박사';
+      return { career, edu };
+    }
+    
+    function normalizeCareer(value){
+      if (!value) return '';
+      const v = String(value).trim();
+      if (v === '-') return '';
+      if (v === '경력무관' || v === '무관') return '무관';
+      return v;
+    }
+    
+    function normalizeEdu(value){
+      if (!value) return '';
+      const v = String(value).trim();
+      if (v === '-') return '';
+      if (v === '초대졸' || v === '전문대') return '대졸(2~3)';
+      return v;
+    }
+    
+    function getCareer(j){
+      const fromApi = normalizeCareer(j.empWantedCareerCd);
+      if (fromApi) return fromApi;
+      return normalizeCareer(guessFromTitle(j.empWantedTitle).career);
+    }
+    
+    function getEdu(j){
+      const fromApi = normalizeEdu(j.empWantedEduCd);
+      if (fromApi) return fromApi;
+      return normalizeEdu(guessFromTitle(j.empWantedTitle).edu);
+    }
+    
+    async function render(){
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      
       const tbody = document.getElementById('tbody');
-      tbody.innerHTML='';
-      for (const j of jobs){
-        const tr=document.createElement('tr');
-        const cells=[j.title,j.company,j.role,j.endDate];
-        for(const c of cells){ const td=document.createElement('td'); td.textContent=c||'-'; tr.appendChild(td);} 
-        const td=document.createElement('td');
-        const btn=document.createElement('button');
-        btn.textContent='삭제';
-        btn.onclick=()=>{ StorageAPI.unsaveJob(current?.id, j.id); render(); };
-        td.appendChild(btn); tr.appendChild(td);
-        tbody.appendChild(tr);
+      if (!tbody) return;
+      
+      tbody.innerHTML = '<tr><td colspan="6">불러오는 중...</td></tr>';
+      
+      // 로그인하지 않은 경우
+      if (!token || !user) {
+        tbody.innerHTML = '<tr><td colspan="6">로그인이 필요합니다. <a href="/login.html">로그인</a> 후 이용해주세요.</td></tr>';
+        return;
+      }
+      
+      try {
+        // 백엔드 API에서 즐겨찾기 목록 가져오기
+        const res = await fetch('http://localhost:8000/api/favorites', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errorText}`);
+        }
+        
+        const data = await res.json();
+        const favorites = data.favorites || [];
+        
+        if (favorites.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">저장된 즐겨찾기가 없습니다.</td></tr>';
+          return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        // DB에 저장된 공고 정보를 직접 표시
+        for (const fav of favorites){
+          const tr = document.createElement('tr');
+          const cells = [
+            fav.jobTitle || '-',
+            fav.company || '-',
+            fav.career || '-',
+            fav.education || '-',
+            fav.link ? `<a href="${fav.link}" target="_blank">링크</a>` : '-'
+          ];
+          for(const c of cells){
+            const td = document.createElement('td');
+            td.innerHTML = c || '-';
+            tr.appendChild(td);
+          }
+          const td = document.createElement('td');
+          const btn = document.createElement('button');
+          btn.textContent = '삭제';
+          btn.className = 'new-post-btn';
+          btn.onclick = async () => {
+            try {
+              const deleteRes = await fetch(`http://localhost:8000/api/favorites/${fav.jobSeq}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              
+              if (!deleteRes.ok) {
+                throw new Error('삭제 실패');
+              }
+              render();
+            } catch(e) {
+              alert('삭제 중 오류가 발생했습니다: ' + e.message);
+            }
+          };
+          td.appendChild(btn);
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+        }
+      } catch(e) {
+        console.error('저장내역 로딩 오류:', e);
+        tbody.innerHTML = `<tr><td colspan="6">오류: ${String(e)}</td></tr>`;
       }
     }
+    
     document.addEventListener('DOMContentLoaded', render);
   </script>
 </head>
@@ -32,9 +144,9 @@
   <header class="banner"><h1><a href="/" style="color:inherit;text-decoration:none;">내일의 발견</a></h1></header>
   <main class="dashboard" style="grid-template-columns:1fr;">
     <section class="left-panel">
-      <h2>저장내역 조회</h2>
+      <h2>저장내역 조회 (즐겨찾기)</h2>
       <table class="job-table">
-        <thead><tr><th>공고명</th><th>기업명</th><th>직무</th><th>마감일</th><th></th></tr></thead>
+        <thead><tr><th>공고명</th><th>기업명</th><th>경력</th><th>학력</th><th>링크</th><th></th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       <div style="margin-top:12px;"><a class="btn" href="/">메인으로</a></div>

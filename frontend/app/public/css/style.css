@@ -4,7 +4,10 @@ body {
   font-family: "Noto Sans KR", sans-serif;
   color: #222;
   margin: 0;
+  padding: 0;
   font-size: 1.1rem;
+  width: 100%;
+  max-width: none;
 }
 
 .banner {
@@ -28,12 +31,12 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-columns: 0.7fr 5.3fr; /* 왼쪽 패널을 조금 더 넓게 */
-  gap: 1.6rem;
-  padding: 2.6rem 3.6rem;
+  grid-template-columns: 0.6fr 5.9fr; /* 오른쪽 패널을 더 넓게 */
+  gap: 1.4rem;
+  padding: 2.4rem 2rem;
   width: 100%;
-  max-width: 2500px; /* 페이지 전체 가로 조금 더 확장 */
-  margin: 0 auto;
+  max-width: none; /* 가로 제한 제거 */
+  margin: 0;
 }
 
 /* ===== 패널 ===== */
@@ -183,13 +186,7 @@ body {
   }
 }
 
-/* 대시보드 영역 확장 */
-.dashboard {
-  width: 95%;
-  max-width: 1800px;
-  gap: 2.5rem;
-  padding: 3rem 4rem;
-}
+/* 대시보드 영역 확장 (중복 제거 - 위에서 이미 처리) */
 
 /* 좌우 패널의 여백 및 내부 패딩 확대 */
 .left-panel, .right-panel {

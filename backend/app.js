@@ -65,10 +65,12 @@ const Job = mongoose.model('Job', jobSchema);
 // 라우터 가져오기
 const authRoutes = require('./routes/auth');
 const work24Router = require('./routes/work24');
+const favoritesRoutes = require('./routes/favorites');
 
 // 라우트 설정
 app.use('/api/auth', authRoutes);
 app.use('/api/import/work24', work24Router);
+app.use('/api/favorites', favoritesRoutes);
 
 // 바디 키 보정(안전)
 function pick(body, keys, fallback = '') {
