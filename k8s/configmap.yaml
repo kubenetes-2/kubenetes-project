@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  labels:
+    app: project-config
+data:
+  # JWT Secret - 프로덕션에서는 반드시 변경하세요
+  jwt-secret: "your_jwt_secret_key_change_this_in_production"
+  
+  # Frontend Origin - 외부 접속 IP/도메인으로 변경
+  frontend-origin: "http://192.168.56.201:30300"
+  
+  # Allowed Origins - CORS 허용할 origin 목록 (쉼표로 구분)
+  allowed-origins: "http://192.168.56.201:30300,http://192.168.56.202:30300,http://192.168.56.203:30300,http://192.168.56.104:30300,http://192.168.56.105:30300,http://192.168.56.106:30300,http://192.168.56.107:30300,http://192.168.56.108:30300,http://192.168.0.201:30300,http://192.168.0.202:30300,http://192.168.0.203:30300"
+  
+  # Work24 API Key
+  work24-key: "184d5b92-d9ef-4629-b9dc-1947635119ac"
+  
+  # Work24 Base URL
+  work24-base-url: "https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L21.do"
+

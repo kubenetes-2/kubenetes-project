@@ -1,0 +1,163 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+  labels:
+    app: mongodb
+spec:
+  serviceName: mongodb-headless
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      # Harbor 레지스트리 인증
+      imagePullSecrets:
+      - name: harbor-registry-secret
+      containers:
+      - name: mongodb
+        image: 192.168.0.208/proj/mongo:7.0
+        ports:
+        - containerPort: 27017
+          name: mongodb
+        env:
+        - name: MONGO_INITDB_DATABASE
+          value: "jobsdb"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: REPLICA_SET_NAME
+          value: "rs0"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # MongoDB Replica Set 초기화 스크립트
+          # MongoDB 시작 (Replica Set 모드, 백그라운드)
+          mongod --replSet rs0 --bind_ip_all &
+          MONGO_PID=$!
+          
+          # MongoDB가 시작될 때까지 대기
+          echo "Waiting for MongoDB to start..."
+          for i in {1..30}; do
+            if mongosh --eval "db.adminCommand('ping')" 2>/dev/null | grep -q "ok.*1"; then
+              echo "MongoDB started successfully"
+              break
+            fi
+            sleep 2
+          done
+          
+          # Pod IP가 할당될 때까지 대기
+          if [ -z "$POD_IP" ]; then
+            echo "Waiting for Pod IP assignment..."
+            for i in {1..10}; do
+              POD_IP=$(hostname -i 2>/dev/null || echo "")
+              if [ -n "$POD_IP" ]; then
+                echo "Pod IP: $POD_IP"
+                break
+              fi
+              sleep 1
+            done
+          fi
+          
+          # Replica Set 초기화 (mongodb-0에서만 실행)
+          if [ "$POD_NAME" = "mongodb-0" ]; then
+            echo "Initializing Replica Set from mongodb-0..."
+            # 이미 초기화되었는지 확인
+            if mongosh --eval "rs.status()" 2>/dev/null | grep -q "set.*rs0"; then
+              echo "Replica Set already initialized"
+              # 멤버 확인 및 추가
+              MEMBER_COUNT=$(mongosh --quiet --eval "rs.status().members.length" 2>/dev/null || echo "1")
+              if [ "$MEMBER_COUNT" -eq "1" ]; then
+                echo "Adding secondary node..."
+                # mongodb-1의 실제 IP 또는 FQDN 사용
+                mongosh --eval "rs.add({host: 'mongodb-1.mongodb-headless:27017', priority: 1})" 2>/dev/null || echo "Secondary not ready yet"
+              fi
+            else
+              echo "Initializing new Replica Set..."
+              # Pod IP를 사용하여 Replica Set 초기화
+              if [ -n "$POD_IP" ]; then
+                echo "Using Pod IP: $POD_IP"
+                mongosh --eval "
+                  rs.initiate({
+                    _id: 'rs0',
+                    members: [
+                      { _id: 0, host: '${POD_IP}:27017', priority: 2 }
+                    ]
+                  })
+                " 2>/dev/null || echo "Replica Set init may have failed"
+              else
+                echo "Pod IP not available, using FQDN..."
+                HOST_NAME="${POD_NAME}.mongodb-headless.default.svc.cluster.local"
+                mongosh --eval "
+                  rs.initiate({
+                    _id: 'rs0',
+                    members: [
+                      { _id: 0, host: '${HOST_NAME}:27017', priority: 2 }
+                    ]
+                  })
+                " 2>/dev/null || echo "Replica Set init may have failed"
+              fi
+              
+              echo "Waiting for Replica Set to be ready..."
+              sleep 5
+              
+              # mongodb-1이 있으면 추가 시도
+              echo "Attempting to add secondary node..."
+              mongosh --eval "rs.add({host: 'mongodb-1.mongodb-headless:27017', priority: 1})" 2>/dev/null || echo "Secondary will be added later"
+            fi
+          else
+            echo "Secondary node ($POD_NAME) starting..."
+            # Secondary는 Primary에 연결되면 자동으로 추가됨
+            # 수동으로 추가하려면 Primary에서 실행
+          fi
+          
+          # MongoDB를 포그라운드로 유지
+          wait $MONGO_PID
+        volumeMounts:
+        - name: mongodb-storage
+          mountPath: /data/db
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - db.adminCommand('ping')
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - db.adminCommand('ping')
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+  volumeClaimTemplates:
+  - metadata:
+      name: mongodb-storage
+    spec:
+      storageClassName: hostpath
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+
