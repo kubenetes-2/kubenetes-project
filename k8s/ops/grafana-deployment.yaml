@@ -19,19 +19,42 @@ spec:
       - key: node.kubernetes.io/unreachable
         operator: Exists
         effect: NoSchedule
-      nodeSelector:
-        node-role.kubernetes.io/control-plane: "false"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - node3
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: NotIn
+                values:
+                - "true"
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - node3
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+        runAsGroup: 472
       initContainers:
-      - name: copy-dashboards
+      - name: chown
         image: busybox:1.36
-        command: ['sh', '-c']
+        command: ["sh", "-c"]
         args:
         - |
-          mkdir -p /var/lib/grafana/dashboards
-          cp /etc/grafana/dashboards-provider/*.json /var/lib/grafana/dashboards/ || true
+          chown -R 472:472 /var/lib/grafana || true
+          chmod -R 755 /var/lib/grafana || true
+        securityContext:
+          runAsUser: 0
         volumeMounts:
-        - name: grafana-dashboards-provider
-          mountPath: /etc/grafana/dashboards-provider
         - name: grafana-storage
           mountPath: /var/lib/grafana
       containers:
@@ -47,35 +70,28 @@ spec:
           value: "admin"  # 프로덕션에서는 Secret 사용 권장
         - name: GF_SERVER_ROOT_URL
           value: "/"
+        securityContext:
+          runAsUser: 472
+          runAsGroup: 472
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana
         - name: grafana-datasources
           mountPath: /etc/grafana/provisioning/datasources
-        - name: grafana-dashboards
-          mountPath: /etc/grafana/provisioning/dashboards
-        - name: grafana-dashboards-provider
-          mountPath: /var/lib/grafana/dashboards
-          readOnly: true
         resources:
           requests:
-            memory: "256Mi"
+            memory: "128Mi"
             cpu: "100m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "384Mi"
+            cpu: "300m"
       volumes:
       - name: grafana-storage
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: grafana-pvc
       - name: grafana-datasources
         configMap:
           name: grafana-datasources
-      - name: grafana-dashboards
-        configMap:
-          name: grafana-dashboard-provisioning
-      - name: grafana-dashboards-provider
-        configMap:
-          name: grafana-dashboard-traffic-provisioning
 
 ---
 apiVersion: v1

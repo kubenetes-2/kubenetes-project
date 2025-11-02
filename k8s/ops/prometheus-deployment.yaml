@@ -19,8 +19,23 @@ spec:
       - key: node.kubernetes.io/unreachable
         operator: Exists
         effect: NoSchedule
-      nodeSelector:
-        node-role.kubernetes.io/control-plane: "false"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - node3
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - node3
       serviceAccountName: prometheus
       containers:
       - name: prometheus
@@ -28,7 +43,8 @@ spec:
         args:
           - '--config.file=/etc/prometheus/prometheus.yml'
           - '--storage.tsdb.path=/prometheus'
-          - '--storage.tsdb.retention.time=15d'
+          - '--storage.tsdb.retention.time=7d'
+          - '--storage.tsdb.retention.size=5GB'
           - '--web.console.libraries=/usr/share/prometheus/console_libraries'
           - '--web.console.templates=/usr/share/prometheus/consoles'
         ports:
@@ -41,10 +57,10 @@ spec:
           mountPath: /prometheus
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "256Mi"
+            cpu: "200m"
           limits:
-            memory: "1Gi"
+            memory: "768Mi"
             cpu: "500m"
       volumes:
       - name: prometheus-config
@@ -147,6 +163,8 @@ data:
       relabel_configs:
       - action: labelmap
         regex: __meta_kubernetes_node_label_(.+)
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
       - target_label: __address__
         replacement: kubernetes.default.svc:443
       - source_labels: [__meta_kubernetes_node_name]
@@ -154,6 +172,10 @@ data:
         target_label: __metrics_path__
         replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
       metric_relabel_configs:
+      - source_labels: [instance]
+        regex: '^([^:]+):.*'
+        target_label: node
+        replacement: '${1}'
       - action: replace
         source_labels: [id]
         regex: '^/machine\.slice/machine-rkt\\x2d([^\\]+)\\.+/([^/]+)\.service'
