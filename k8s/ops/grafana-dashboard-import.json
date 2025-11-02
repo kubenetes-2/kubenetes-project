@@ -1,0 +1,971 @@
+{
+  "id": null,
+  "uid": "node-traffic-dashboard",
+  "title": "Kubernetes Nodes Monitoring",
+  "tags": ["kubernetes", "network", "traffic", "cpu", "memory"],
+  "timezone": "browser",
+  "schemaVersion": 16,
+  "version": 0,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 2,
+      "title": "Master Node 1 - Status",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "up{job=\"node-exporter\", node=\"master1\"}",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0.5, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Dead", "color": "red"},
+                "1": {"text": "Alive", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Master Node 2 - Status",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 8},
+      "targets": [
+        {
+          "expr": "up{job=\"node-exporter\", node=\"master2\"}",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0.5, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Dead", "color": "red"},
+                "1": {"text": "Alive", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Master Node 3 - Status",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "up{job=\"node-exporter\", node=\"master3\"}",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0.5, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Dead", "color": "red"},
+                "1": {"text": "Alive", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Worker Node 1 - Status",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 8},
+      "targets": [
+        {
+          "expr": "up{job=\"node-exporter\", node=\"node1\"}",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0.5, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Dead", "color": "red"},
+                "1": {"text": "Alive", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Worker Node 2 - Status",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 14},
+      "targets": [
+        {
+          "expr": "up{job=\"node-exporter\", node=\"node2\"}",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0.5, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Dead", "color": "red"},
+                "1": {"text": "Alive", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Worker Node 3 - Status",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 14},
+      "targets": [
+        {
+          "expr": "up{job=\"node-exporter\", node=\"node3\"}",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0.5, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Dead", "color": "red"},
+                "1": {"text": "Alive", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 8,
+      "title": "Worker Node 4 - Status",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 14},
+      "targets": [
+        {
+          "expr": "up{job=\"node-exporter\", node=\"node4\"}",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0.5, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Dead", "color": "red"},
+                "1": {"text": "Alive", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 9,
+      "title": "Worker Node 5 - Status",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 14},
+      "targets": [
+        {
+          "expr": "up{job=\"node-exporter\", node=\"node5\"}",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "red"},
+              {"value": 0.5, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "Dead", "color": "red"},
+                "1": {"text": "Alive", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 10,
+      "title": "Master Node 1 - CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 20},
+      "targets": [
+        {
+          "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{node=\"master1\", mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 11,
+      "title": "Master Node 1 - Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 20},
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{node=\"master1\"} / node_memory_MemTotal_bytes{node=\"master1\"})) * 100",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 12,
+      "title": "Master Node 2 - CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 20},
+      "targets": [
+        {
+          "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{node=\"master2\", mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 13,
+      "title": "Master Node 2 - Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 20},
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{node=\"master2\"} / node_memory_MemTotal_bytes{node=\"master2\"})) * 100",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 14,
+      "title": "Master Node 3 - CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 26},
+      "targets": [
+        {
+          "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{node=\"master3\", mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 15,
+      "title": "Master Node 3 - Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 26},
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{node=\"master3\"} / node_memory_MemTotal_bytes{node=\"master3\"})) * 100",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 16,
+      "title": "Worker Node 1 - CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 26},
+      "targets": [
+        {
+          "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{node=\"node1\", mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 17,
+      "title": "Worker Node 1 - Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 46},
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{node=\"node1\"} / node_memory_MemTotal_bytes{node=\"node1\"})) * 100",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 18,
+      "title": "Worker Node 2 - CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 32},
+      "targets": [
+        {
+          "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{node=\"node2\", mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 19,
+      "title": "Worker Node 2 - Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 52},
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{node=\"node2\"} / node_memory_MemTotal_bytes{node=\"node2\"})) * 100",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 20,
+      "title": "Worker Node 3 - CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 32},
+      "targets": [
+        {
+          "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{node=\"node3\", mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 21,
+      "title": "Worker Node 3 - Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 52},
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{node=\"node3\"} / node_memory_MemTotal_bytes{node=\"node3\"})) * 100",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 22,
+      "title": "Worker Node 4 - CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 38},
+      "targets": [
+        {
+          "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{node=\"node4\", mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 23,
+      "title": "Worker Node 4 - Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 58},
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{node=\"node4\"} / node_memory_MemTotal_bytes{node=\"node4\"})) * 100",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 24,
+      "title": "Worker Node 5 - CPU Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 38},
+      "targets": [
+        {
+          "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{node=\"node5\", mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 25,
+      "title": "Worker Node 5 - Memory Usage",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 58},
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{node=\"node5\"} / node_memory_MemTotal_bytes{node=\"node5\"})) * 100",
+          "legendFormat": "Memory Usage",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 70, "color": "yellow"},
+              {"value": 90, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+  }
+}

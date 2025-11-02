@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    name: dev
+    purpose: application
+    env: development
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ops
+  labels:
+    name: ops
+    purpose: operations
+    env: operations
+

@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
+  namespace: dev
   labels:
     app: backend
 spec:
@@ -29,7 +30,7 @@ spec:
         - name: PORT
           value: "8000"
         - name: MONGO_URI
-          value: "mongodb://mongodb:27017/jobsdb"
+          value: "mongodb://mongodb-0.mongodb-headless.dev:27017,mongodb-1.mongodb-headless.dev:27017/jobsdb?replicaSet=rs0"
         - name: JWT_SECRET
           valueFrom:
             configMapKeyRef:

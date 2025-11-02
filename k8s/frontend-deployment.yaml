@@ -2,10 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
+  namespace: dev
   labels:
     app: frontend
 spec:
-  replicas: 5
+  replicas: 3  # 리소스 부족 문제로 5→3으로 조정
   selector:
     matchLabels:
       app: frontend
@@ -29,7 +30,7 @@ spec:
         - name: PORT
           value: "3000"
         - name: BACKEND_URL
-          value: "http://backend:8000"
+          value: "http://backend.dev:8000"
         - name: WORK24_API_KEY
           valueFrom:
             configMapKeyRef:

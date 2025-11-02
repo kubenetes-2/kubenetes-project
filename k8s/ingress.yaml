@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: dev  # dev 네임스페이스
+  annotations:
+    # Nginx Ingress Controller 사용 시
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx  # 또는 traefik
+  rules:
+  # 모든 경로를 Frontend로 보냄 (페이지 라우팅은 Frontend Express 서버가 처리)
+  # /login, /signup, /history 같은 페이지 라우팅은 Frontend Pod의 Express 서버가 담당
+  - host: app.example.com  # 또는 실제 도메인 (또는 생략하면 모든 도메인)
+    http:
+      paths:
+      # 루트 및 모든 페이지 경로 → Frontend (Express 서버가 페이지 라우팅 처리)
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+      # API 경로만 → Backend (Frontend의 /api 프록시를 대체)
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8000
+
+---
+# 참고: 
+# - /login, /signup, /history 같은 페이지 라우팅은 Frontend Pod의 Express 서버가 처리
+# - Ingress는 서비스 간 라우팅만 담당 (/ → Frontend, /api → Backend)
+# - 현재는 HAProxy가 Ingress 역할을 대신 수행 중
+

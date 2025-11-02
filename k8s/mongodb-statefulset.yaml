@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mongodb
+  namespace: dev
   labels:
     app: mongodb
 spec:
@@ -80,7 +81,7 @@ spec:
               if [ "$MEMBER_COUNT" -eq "1" ]; then
                 echo "Adding secondary node..."
                 # mongodb-1의 실제 IP 또는 FQDN 사용
-                mongosh --eval "rs.add({host: 'mongodb-1.mongodb-headless:27017', priority: 1})" 2>/dev/null || echo "Secondary not ready yet"
+                mongosh --eval "rs.add({host: 'mongodb-1.mongodb-headless.dev:27017', priority: 1})" 2>/dev/null || echo "Secondary not ready yet"
               fi
             else
               echo "Initializing new Replica Set..."
@@ -97,7 +98,7 @@ spec:
                 " 2>/dev/null || echo "Replica Set init may have failed"
               else
                 echo "Pod IP not available, using FQDN..."
-                HOST_NAME="${POD_NAME}.mongodb-headless.default.svc.cluster.local"
+                HOST_NAME="${POD_NAME}.mongodb-headless.dev.svc.cluster.local"
                 mongosh --eval "
                   rs.initiate({
                     _id: 'rs0',
@@ -113,7 +114,7 @@ spec:
               
               # mongodb-1이 있으면 추가 시도
               echo "Attempting to add secondary node..."
-              mongosh --eval "rs.add({host: 'mongodb-1.mongodb-headless:27017', priority: 1})" 2>/dev/null || echo "Secondary will be added later"
+              mongosh --eval "rs.add({host: 'mongodb-1.mongodb-headless.dev:27017', priority: 1})" 2>/dev/null || echo "Secondary will be added later"
             fi
           else
             echo "Secondary node ($POD_NAME) starting..."
