@@ -19,27 +19,14 @@ spec:
       - key: node.kubernetes.io/unreachable
         operator: Exists
         effect: NoSchedule
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            preference:
-              matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: NotIn
-                values:
-                - node3
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: node-role.kubernetes.io/control-plane
-                operator: NotIn
-                values:
-                - "true"
-              - key: kubernetes.io/hostname
-                operator: NotIn
-                values:
-                - node3
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      nodeSelector:
+        workload: grafana
       securityContext:
         fsGroup: 472
         runAsUser: 472
