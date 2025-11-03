@@ -2,58 +2,30 @@
 const express = require('express');
 const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
-const { XMLParser } = require('fast-xml-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 고용24 오픈API 프록시 (프론트 자체 처리) - 백엔드 프록시보다 먼저 선언해야 함
-const WORK24_API_KEY = process.env.WORK24_API_KEY || '184d5b92-d9ef-4629-b9dc-1947635119ac';
-const WORK24_BASE_URL = 'https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L21.do';
+const BACKEND_API_URL = process.env.BACKEND_API_URL || process.env.BACKEND_URL || 'http://backend-proxy.dev-front.svc.cluster.local:8000';
 
 app.get('/work24', async (req, res) => {
   try {
     const startPage = req.query.startPage || '1';
     const perPage = req.query.perPage || '10';
-    const url = new URL(WORK24_BASE_URL);
-    url.searchParams.append('authKey', WORK24_API_KEY);
-    url.searchParams.append('callTp', 'L');
-    url.searchParams.append('returnType', 'XML');
-    url.searchParams.append('startPage', String(startPage));
-    url.searchParams.append('display', String(perPage));
+    const url = new URL('/api/import/work24', BACKEND_API_URL);
+    url.searchParams.append('page', String(startPage));
+    url.searchParams.append('perPage', String(perPage));
 
-    const r = await fetch(url.toString());
-    const text = await r.text();
+    const r = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
     if (!r.ok) {
-      return res.status(502).json({ ok: false, message: `Work24 error ${r.status}`, raw: text });
+      const text = await r.text().catch(() => '');
+      return res.status(502).json({ ok: false, message: `Backend Work24 proxy error ${r.status}`, raw: text });
     }
 
-    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '', isArray: name => name === 'dhsOpenEmpInfo' });
-    const j = parser.parse(text);
-
-    let items = [];
-    if (j && j.dhsOpenEmpInfoList) {
-      items = j.dhsOpenEmpInfoList.dhsOpenEmpInfo || [];
-      if (!Array.isArray(items)) items = [items];
-    }
-
-    const jobs = items.map(it => ({
-      coClcd: it.coClcdNm || '-',
-      empWantedTypeCd: it.empWantedTypeNm || '-',
-      empWantedCareerCd: it.empWantedCareerNm || '-',
-      empWantedEduCd: it.empWantedEduNm || '-',
-      empWantedTitle: it.empWantedTitle || '-',
-      homeUrl: it.empWantedHomepgDetail || null,
-      company: it.empBusiNm || '-',
-      seq: it.empSeqno || null,
-      logo: it.regLogImgNm || null,
-      startDate: it.empWantedStdt || null,
-      endDate: it.empWantedEndt || null,
-      region: it.workRgnNm || '-',
-      salary: it.salaryNm || '-',
-    }));
-
-    return res.json({ ok: true, count: jobs.length, jobs, raw: j });
+    const data = await r.json();
+    return res.json(data);
   } catch (e) {
+    console.error('[frontend/work24] proxy error:', e);
     return res.status(500).json({ ok: false, message: 'Failed to fetch Work24', error: String(e) });
   }
 });

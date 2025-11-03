@@ -1,7 +1,9 @@
 const mongoose = require('mongoose')
 
 const GUESTBOOK_DB_ADDR = process.env.GUESTBOOK_DB_ADDR; 
-const mongoURI = "mongodb://" + GUESTBOOK_DB_ADDR + "/guestbook"
+const mongoURI = GUESTBOOK_DB_ADDR
+  ? `mongodb://${GUESTBOOK_DB_ADDR}/guestbook`
+  : process.env.MONGO_URI || 'mongodb://localhost:27017/guestbook';
 
 const db = mongoose.connection;
 
@@ -18,11 +20,17 @@ db.once('open', () => {
 });
 
 const connectToMongoDB = async () => {
-    await mongoose.connect(mongoURI, {
-        useNewUrlParser: true,
-        connectTimeoutMS: 2000,
-        reconnectTries: 1
-    })
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  await mongoose.connect(mongoURI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 2000
+  });
+
+  return mongoose.connection;
 };
 
 const messageSchema = mongoose.Schema({

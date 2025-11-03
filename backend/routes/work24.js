@@ -26,19 +26,90 @@ async function fetchWork24(page = 1, perPage = 10) {
   }
 }
 
-// 실제 API 구조: dhsEmpWantedInfoList > dhsOpenEmpInfo[]
+// 실제 API 구조: dhsOpenEmpInfoList > dhsOpenEmpInfo[] (혹은 Info210L21OutVo.list)
 function normalizeWork24Response(raw) {
-  if (!raw || !raw.dhsEmpWantedInfoList) return [];
-  let items = raw.dhsEmpWantedInfoList.dhsOpenEmpInfo; // 이 부분 수정!
+  if (!raw) return [];
+
+  let items = [];
+
+  if (raw.dhsOpenEmpInfoList) {
+    items = raw.dhsOpenEmpInfoList.dhsOpenEmpInfo || [];
+  } else if (raw.dhsEmpWantedInfoList) {
+    items = raw.dhsEmpWantedInfoList.dhsOpenEmpInfo || [];
+  } else if (raw.Info210L21OutVo) {
+    items = raw.Info210L21OutVo.list || [];
+  }
+
   if (!items) return [];
   if (!Array.isArray(items)) items = [items];
-  return items.map(it => ({
-    coClcd: it.coClcd || '-',
-    empWantedTypeCd: it.empWantedTypeCd || '-',
-    empWantedCareerCd: it.empWantedCareerCd || '-',
-    empWantedTitle: it.empWantedTitle || '-',
-    empWantedEduCd: it.empWantedEduCd || '-'
-  }));
+
+  return items.map(it => {
+    const seq = it.empSeqno || it.seq || it.jobId || null;
+    const title = it.empWantedTitle || it.recruTitle || it.title || '-';
+    const company = it.empBusiNm || it.corpName || it.company || '-';
+    let coClcd = (it.coClcd || it.coClCd || it.coClcdCd || it.corpDivCd || '').toString().trim();
+    const coClcdNm = it.coClcdNm || it.corpDiv || it.companyType || (coClcd ? coClcd : '-');
+    if (!coClcd || coClcd === '-') coClcd = coClcdNm || '-';
+
+    let empWantedTypeCd = (it.empWantedTypeCd || it.empWantedType || it.empTypeCd || '').toString().trim();
+    const empWantedTypeNm = it.empWantedTypeNm || it.empType || it.jobTypeNm || (empWantedTypeCd || '-');
+    if (!empWantedTypeCd || empWantedTypeCd === '-') empWantedTypeCd = empWantedTypeNm || '-';
+    const empWantedCareerCd = (it.empWantedCareerCd || it.empWantedCareerCode || '').toString().trim();
+    const empWantedCareerNm = it.empWantedCareerNm || it.empWantedCareerCd || it.career || empWantedCareerCd || '';
+    const empWantedEduCd = (it.empWantedEduCd || it.empWantedEduCode || '').toString().trim();
+    const empWantedEduNm = it.empWantedEduNm || it.empWantedEduCd || it.education || empWantedEduCd || '';
+    const homeUrl = it.empWantedHomepgDetail
+      || it.empWantedHomepg
+      || it.empWantedMobileUrl
+      || it.homeUrl
+      || it.url
+      || it.link
+      || null;
+    const logo = it.regLogImgNm || it.logo || null;
+    const workAddress = it.workAddress || it.workRgnNm || '-';
+    const salaryNm = it.salaryNm || it.salary || '-';
+    const jobType = it.jobType || it.role || '-';
+    const startDate = it.empWantedStdt || it.startDate || null;
+    const endDate = it.empWantedEndt || it.deadline || null;
+
+    return {
+      seq,
+      // 원본 필드 유지 (프론트 static js 호환)
+      empWantedTitle: title,
+      empBusiNm: company,
+      coClcd,
+      coClcdNm,
+      empWantedTypeCd,
+      empWantedTypeNm,
+      empWantedCareerCd,
+      empWantedCareerNm,
+      empWantedEduCd,
+      empWantedEduNm,
+      empWantedStdt: startDate,
+      empWantedEndt: endDate,
+      empWantedHomepgDetail: homeUrl,
+      regLogImgNm: logo,
+      workAddress,
+      salaryNm,
+      jobType,
+
+      // 통합 필드 (Next.js 버전 호환)
+      title,
+      company,
+      corpDiv: coClcdNm,
+      empType: empWantedTypeNm,
+      career: empWantedCareerNm || it.career || '-',
+      education: empWantedEduNm || it.education || '-',
+      address: workAddress,
+      role: jobType,
+      salary: salaryNm,
+      startDate,
+      deadline: endDate,
+      link: homeUrl,
+      homeUrl,
+      logo,
+    };
+  });
 }
 
 // GET /api/import/work24
@@ -50,6 +121,10 @@ router.get('/', async (req, res) => {
     const jobs = normalizeWork24Response(apiRes);
     return res.json({ ok: true, count: jobs.length, jobs });
   } catch (e) {
+    console.error('[work24] fetchWork24 failed:', e);
+    if (e.cause) {
+      console.error('[work24] root cause:', e.cause);
+    }
     return res.status(500).json({ ok: false, message: e.message });
   }
 });

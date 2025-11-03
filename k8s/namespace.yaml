@@ -1,10 +1,33 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: dev
+  name: dev-front
   labels:
-    name: dev
+    name: dev-front
+    tier: frontend
     purpose: application
+    env: development
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev-back
+  labels:
+    name: dev-back
+    tier: backend
+    purpose: application
+    env: development
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev-db
+  labels:
+    name: dev-db
+    tier: database
+    purpose: data
     env: development
 
 ---

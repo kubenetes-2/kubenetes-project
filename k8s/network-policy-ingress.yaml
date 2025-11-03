@@ -1,43 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: backend-ingress-policy
-  namespace: dev  # dev 네임스페이스
-spec:
-  podSelector:
-    matchLabels:
-      app: backend
-  policyTypes:
-  - Ingress
-  ingress:
-  # Frontend에서의 접근 허용
-  - from:
-    - podSelector:
-        matchLabels:
-          app: frontend
-    ports:
-    - protocol: TCP
-      port: 8000
-  # Ingress Controller에서의 접근 허용
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ops  # ops 네임스페이스 (Ingress Controller 네임스페이스)
-    ports:
-    - protocol: TCP
-      port: 8000
-  # Service를 통한 접근 허용 (NodePort)
-  - from: []  # 모든 소스 허용 (외부 접근)
-    ports:
-    - protocol: TCP
-      port: 8000
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
   name: frontend-ingress-policy
-  namespace: dev  # dev 네임스페이스
+  namespace: dev-front
 spec:
   podSelector:
     matchLabels:
@@ -45,16 +10,14 @@ spec:
   policyTypes:
   - Ingress
   ingress:
-  # Ingress Controller에서의 접근 허용
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ops  # ops 네임스페이스 (Ingress Controller 네임스페이스)
+  - from: []
     ports:
     - protocol: TCP
       port: 3000
-  # Service를 통한 접근 허용 (NodePort)
-  - from: []  # 모든 소스 허용 (외부 접근)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ops
     ports:
     - protocol: TCP
       port: 3000
@@ -63,8 +26,39 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: backend-ingress-policy
+  namespace: dev-back
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: dev-front
+      podSelector:
+        matchLabels:
+          app: frontend
+    ports:
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ops
+    ports:
+    - protocol: TCP
+      port: 8000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: mongodb-ingress-policy
-  namespace: dev  # dev 네임스페이스
+  namespace: dev-db
 spec:
   podSelector:
     matchLabels:
@@ -72,15 +66,16 @@ spec:
   policyTypes:
   - Ingress
   ingress:
-  # Backend에서의 접근 허용만
   - from:
-    - podSelector:
+    - namespaceSelector:
+        matchLabels:
+          name: dev-back
+      podSelector:
         matchLabels:
           app: backend
     ports:
     - protocol: TCP
       port: 27017
-  # MongoDB Replica Set 통신 허용
   - from:
     - podSelector:
         matchLabels:

@@ -3,11 +3,8 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-// DB 연결 (이미 app.js에서 연결되어 있으면 생략 가능하지만 안전하게 추가)
-mongoose.connect('mongodb://mongodb:27017/jobsdb', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
+// DB 연결은 app.js에서 이미 처리됨 - 중복 연결 제거
+// mongoose.connect는 app.js에서 이미 MONGO_URI 환경 변수로 연결하고 있음
 
 // 스키마 정의 (요청하신 컬럼 반영)
 const jobSchema = new mongoose.Schema({

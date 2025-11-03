@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
-  namespace: dev
+  namespace: dev-back
   labels:
     app: project-config
 data:
@@ -21,4 +21,16 @@ data:
   
   # Work24 Base URL
   work24-base-url: "https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L21.do"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: dev-front
+  labels:
+    app: project-config
+data:
+  # Work24 API Key (프론트엔드에서 사용)
+  work24-key: "184d5b92-d9ef-4629-b9dc-1947635119ac"
 

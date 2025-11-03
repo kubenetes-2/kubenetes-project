@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-proxy
+  namespace: dev-front
+  labels:
+    app: backend-proxy
+spec:
+  type: ExternalName
+  externalName: backend.dev-back.svc.cluster.local
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+

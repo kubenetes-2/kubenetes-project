@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: dev
+  namespace: dev-front
   labels:
     app: frontend
 spec:
@@ -30,7 +30,7 @@ spec:
         - name: PORT
           value: "3000"
         - name: BACKEND_URL
-          value: "http://backend.dev:8000"
+          value: "http://backend.dev-back.svc.cluster.local:8000"
         - name: WORK24_API_KEY
           valueFrom:
             configMapKeyRef:

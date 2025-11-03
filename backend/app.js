@@ -1,5 +1,4 @@
 // /home/kevin/gb-deploy/src/backend/app.js
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -9,6 +8,28 @@ const mongoose = require('mongoose');
 // local development so running `node app.js` works without docker.
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/jobsdb';
 const PORT = process.env.PORT || 8000;
+
+mongoose.set('strictQuery', true);
+
+async function connectToDatabase() {
+  if (!MONGO_URI) {
+    console.error('[mongo] MONGO_URI is not defined');
+    process.exit(1);
+  }
+
+  try {
+    await mongoose.connect(MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 30000
+    });
+    console.log('[mongo] connected:', MONGO_URI);
+  } catch (err) {
+    console.error('[mongo] connection error:', err);
+    process.exit(1);
+  }
+}
 
 const app = express();
 
@@ -59,16 +80,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-
-// DB
-mongoose.set('strictQuery', true);
-mongoose
-  .connect(MONGO_URI)
-  .then(() => console.log('[mongo] connected:', MONGO_URI))
-  .catch((e) => {
-    console.error('[mongo] connect error:', e);
-    process.exit(1);
-  });
 
 const jobSchema = new mongoose.Schema(
   {
@@ -345,7 +356,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log('[backend] listening on', PORT);
-});
+connectToDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log('[backend] listening on', PORT);
+    });
+  })
+  .catch((err) => {
+    console.error('[mongo] failed to start server due to DB connection error:', err);
+    process.exit(1);
+  });
 

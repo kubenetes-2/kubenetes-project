@@ -1,49 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: backend-egress-policy
-  namespace: dev  # dev 네임스페이스
-spec:
-  podSelector:
-    matchLabels:
-      app: backend
-  policyTypes:
-  - Egress
-  egress:
-  # MongoDB 접근 허용
-  - to:
-    - podSelector:
-        matchLabels:
-          app: mongodb
-    ports:
-    - protocol: TCP
-      port: 27017
-  # 외부 API 호출 허용 (예: Work24 API)
-  - to:
-    - namespaceSelector: {}
-    ports:
-    - protocol: TCP
-      port: 443  # HTTPS
-    - protocol: TCP
-      port: 80   # HTTP
-  # 모든 외부 접근 허용 (DNS + HTTPS + HTTP)
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-    - protocol: TCP
-      port: 53
-    - protocol: TCP
-      port: 443
-    - protocol: TCP
-      port: 80
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
   name: frontend-egress-policy
-  namespace: dev  # dev 네임스페이스
+  namespace: dev-front
 spec:
   podSelector:
     matchLabels:
@@ -51,21 +10,66 @@ spec:
   policyTypes:
   - Egress
   egress:
-  # Backend 접근 허용
   - to:
-    - podSelector:
+    - namespaceSelector:
+        matchLabels:
+          name: dev-back
+      podSelector:
         matchLabels:
           app: backend
     ports:
     - protocol: TCP
       port: 8000
-  # 모든 외부 접근 허용 (DNS + HTTPS + HTTP)
-  - to: []
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
     ports:
     - protocol: UDP
       port: 53
     - protocol: TCP
       port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-egress-policy
+  namespace: dev-back
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: dev-db
+      podSelector:
+        matchLabels:
+          app: mongodb
+    ports:
+    - protocol: TCP
+      port: 27017
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  - to: []
+    ports:
     - protocol: TCP
       port: 443
     - protocol: TCP
@@ -76,7 +80,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: mongodb-egress-policy
-  namespace: dev  # dev 네임스페이스
+  namespace: dev-db
 spec:
   podSelector:
     matchLabels:
@@ -84,7 +88,6 @@ spec:
   policyTypes:
   - Egress
   egress:
-  # MongoDB Replica Set 통신 허용
   - to:
     - podSelector:
         matchLabels:
@@ -92,8 +95,13 @@ spec:
     ports:
     - protocol: TCP
       port: 27017
-  # DNS 허용 (모든 외부 DNS)
-  - to: []
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
     ports:
     - protocol: UDP
       port: 53

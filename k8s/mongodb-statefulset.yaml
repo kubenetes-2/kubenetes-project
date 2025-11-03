@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mongodb
-  namespace: dev
+  namespace: dev-db
   labels:
     app: mongodb
 spec:
@@ -32,126 +32,144 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: POD_IP
+        - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
-              fieldPath: status.podIP
+              fieldPath: metadata.namespace
         - name: REPLICA_SET_NAME
           value: "rs0"
         command:
         - /bin/bash
         - -c
         - |
-          # MongoDB Replica Set 초기화 스크립트
-          # MongoDB 시작 (Replica Set 모드, 백그라운드)
-          mongod --replSet rs0 --bind_ip_all &
+          set -euo pipefail
+
+          PRIMARY_HOST="mongodb-0.mongodb-headless.${POD_NAMESPACE}.svc.cluster.local:27017"
+          SECONDARY_HOST="mongodb-1.mongodb-headless.${POD_NAMESPACE}.svc.cluster.local:27017"
+
+          rm -rf /data/db/reset.lock
+
+          mongod --replSet "${REPLICA_SET_NAME}" --bind_ip_all &
           MONGO_PID=$!
-          
-          # MongoDB가 시작될 때까지 대기
-          echo "Waiting for MongoDB to start..."
-          for i in {1..30}; do
-            if mongosh --eval "db.adminCommand('ping')" 2>/dev/null | grep -q "ok.*1"; then
-              echo "MongoDB started successfully"
-              break
-            fi
+
+          cleanup() {
+            echo "Shutting down mongod..."
+            kill -TERM "${MONGO_PID}"
+            wait "${MONGO_PID}"
+          }
+          trap cleanup SIGINT SIGTERM
+
+          until mongosh --quiet --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; do
             sleep 2
           done
-          
-          # Pod IP가 할당될 때까지 대기
-          if [ -z "$POD_IP" ]; then
-            echo "Waiting for Pod IP assignment..."
-            for i in {1..10}; do
-              POD_IP=$(hostname -i 2>/dev/null || echo "")
-              if [ -n "$POD_IP" ]; then
-                echo "Pod IP: $POD_IP"
-                break
-              fi
-              sleep 1
+
+          if [[ "${POD_NAME}" == "mongodb-0" ]]; then
+            cat <<'EOF' >/tmp/rs-init.js
+const rsName = process.env.REPLICA_SET_NAME;
+const primaryHost = process.env.PRIMARY_HOST;
+const secondaryHost = process.env.SECONDARY_HOST;
+const expectedMembers = [
+  { _id: 0, host: primaryHost, priority: 2 },
+  { _id: 1, host: secondaryHost, priority: 1 }
+];
+
+function membersNeedUpdate(currentMembers) {
+  if (!Array.isArray(currentMembers) || currentMembers.length !== expectedMembers.length) {
+    return true;
+  }
+  for (const expected of expectedMembers) {
+    const match = currentMembers.find(member => member._id === expected._id);
+    if (!match) {
+      return true;
+    }
+    const priority = typeof match.priority === 'number' ? match.priority : 1;
+    if (match.host !== expected.host || priority !== expected.priority) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function initReplicaSet() {
+  const existingCfg = db.getSiblingDB('local').system.replset.findOne({ _id: rsName });
+  if (!existingCfg) {
+    print(`[rs-init] first-time initiate with members: ${tojson(expectedMembers)}`);
+    return rs.initiate({ _id: rsName, members: expectedMembers });
+  }
+
+  print(`[rs-init] existing config detected, forcing reconfig`);
+  const nextCfg = Object.assign({}, existingCfg);
+  nextCfg.members = expectedMembers;
+  nextCfg.version = (existingCfg.version || 1) + 1;
+  return rs.reconfig(nextCfg, { force: true });
+}
+
+function ensureReplicaSet() {
+  try {
+    const status = rs.status();
+    if (membersNeedUpdate(status.members)) {
+      print('[rs-init] status members mismatch, reconfiguring');
+      initReplicaSet();
+    } else {
+      print('[rs-init] replica set already configured as expected');
+    }
+  } catch (err) {
+    if (err.codeName === 'NotYetInitialized' || err.codeName === 'NodeNotFound') {
+      print(`[rs-init] status error ${err.codeName}, reconfiguring`);
+      initReplicaSet();
+    } else if (err.codeName === 'AlreadyInitialized') {
+      print('[rs-init] previous state detected, reconfiguring');
+      initReplicaSet();
+    } else {
+      throw err;
+    }
+  }
+}
+
+ensureReplicaSet();
+EOF
+
+            PRIMARY_HOST="${PRIMARY_HOST}" SECONDARY_HOST="${SECONDARY_HOST}" REPLICA_SET_NAME="${REPLICA_SET_NAME}" \
+            mongosh --quiet --file /tmp/rs-init.js || true
+
+            until mongosh --quiet --eval "rs.status()" >/dev/null 2>&1; do
+              sleep 2
             done
-          fi
-          
-          # Replica Set 초기화 (mongodb-0에서만 실행)
-          if [ "$POD_NAME" = "mongodb-0" ]; then
-            echo "Initializing Replica Set from mongodb-0..."
-            # 이미 초기화되었는지 확인
-            if mongosh --eval "rs.status()" 2>/dev/null | grep -q "set.*rs0"; then
-              echo "Replica Set already initialized"
-              # 멤버 확인 및 추가
-              MEMBER_COUNT=$(mongosh --quiet --eval "rs.status().members.length" 2>/dev/null || echo "1")
-              if [ "$MEMBER_COUNT" -eq "1" ]; then
-                echo "Adding secondary node..."
-                # mongodb-1의 실제 IP 또는 FQDN 사용
-                mongosh --eval "rs.add({host: 'mongodb-1.mongodb-headless.dev:27017', priority: 1})" 2>/dev/null || echo "Secondary not ready yet"
-              fi
-            else
-              echo "Initializing new Replica Set..."
-              # Pod IP를 사용하여 Replica Set 초기화
-              if [ -n "$POD_IP" ]; then
-                echo "Using Pod IP: $POD_IP"
-                mongosh --eval "
-                  rs.initiate({
-                    _id: 'rs0',
-                    members: [
-                      { _id: 0, host: '${POD_IP}:27017', priority: 2 }
-                    ]
-                  })
-                " 2>/dev/null || echo "Replica Set init may have failed"
-              else
-                echo "Pod IP not available, using FQDN..."
-                HOST_NAME="${POD_NAME}.mongodb-headless.dev.svc.cluster.local"
-                mongosh --eval "
-                  rs.initiate({
-                    _id: 'rs0',
-                    members: [
-                      { _id: 0, host: '${HOST_NAME}:27017', priority: 2 }
-                    ]
-                  })
-                " 2>/dev/null || echo "Replica Set init may have failed"
-              fi
-              
-              echo "Waiting for Replica Set to be ready..."
-              sleep 5
-              
-              # mongodb-1이 있으면 추가 시도
-              echo "Attempting to add secondary node..."
-              mongosh --eval "rs.add({host: 'mongodb-1.mongodb-headless.dev:27017', priority: 1})" 2>/dev/null || echo "Secondary will be added later"
-            fi
+            mongosh --quiet --eval "rs.awaitPrimary();" || true
           else
-            echo "Secondary node ($POD_NAME) starting..."
-            # Secondary는 Primary에 연결되면 자동으로 추가됨
-            # 수동으로 추가하려면 Primary에서 실행
+            until mongosh --quiet --host "${PRIMARY_HOST}" --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; do
+              sleep 2
+            done
+            echo "Connected to primary"
           fi
-          
-          # MongoDB를 포그라운드로 유지
-          wait $MONGO_PID
+
+          wait "${MONGO_PID}"
         volumeMounts:
         - name: mongodb-storage
           mountPath: /data/db
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "250m"
+            memory: "128Mi"
+            cpu: "100m"
           limits:
             memory: "512Mi"
             cpu: "500m"
         livenessProbe:
-          exec:
-            command:
-            - mongosh
-            - --eval
-            - db.adminCommand('ping')
+          tcpSocket:
+            port: 27017
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
         readinessProbe:
-          exec:
-            command:
-            - mongosh
-            - --eval
-            - db.adminCommand('ping')
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
   volumeClaimTemplates:
   - metadata:
       name: mongodb-storage

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: dev
+  namespace: dev-back
   labels:
     app: backend
 spec:
@@ -20,7 +20,8 @@ spec:
       - name: harbor-registry-secret
       containers:
       - name: backend
-        image: 192.168.0.208/proj/backend:1.3
+        image: 192.168.0.208/proj/backend:1.7
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
           name: http
@@ -29,8 +30,9 @@ spec:
           value: "production"
         - name: PORT
           value: "8000"
+        # MongoDB Pod IP 직접 연결 (standalone 모드, 간단한 URI)
         - name: MONGO_URI
-          value: "mongodb://mongodb-0.mongodb-headless.dev.svc.cluster.local:27017/jobsdb?replicaSet=rs0"
+          value: "mongodb://mongodb-0.mongodb-headless.dev-db.svc.cluster.local:27017,mongodb-1.mongodb-headless.dev-db.svc.cluster.local:27017/jobsdb?replicaSet=rs0&readPreference=primary&retryWrites=true"
         - name: JWT_SECRET
           valueFrom:
             configMapKeyRef:
@@ -58,7 +60,7 @@ spec:
               key: work24-base-url
         resources:
           requests:
-            memory: "256Mi"
+            memory: "128Mi"
             cpu: "250m"
           limits:
             memory: "512Mi"
