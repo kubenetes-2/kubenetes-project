@@ -64,70 +64,7 @@ spec:
           done
 
           if [[ "${POD_NAME}" == "mongodb-0" ]]; then
-            cat <<'EOF' >/tmp/rs-init.js
-const rsName = process.env.REPLICA_SET_NAME;
-const primaryHost = process.env.PRIMARY_HOST;
-const secondaryHost = process.env.SECONDARY_HOST;
-const expectedMembers = [
-  { _id: 0, host: primaryHost, priority: 2 },
-  { _id: 1, host: secondaryHost, priority: 1 }
-];
-
-function membersNeedUpdate(currentMembers) {
-  if (!Array.isArray(currentMembers) || currentMembers.length !== expectedMembers.length) {
-    return true;
-  }
-  for (const expected of expectedMembers) {
-    const match = currentMembers.find(member => member._id === expected._id);
-    if (!match) {
-      return true;
-    }
-    const priority = typeof match.priority === 'number' ? match.priority : 1;
-    if (match.host !== expected.host || priority !== expected.priority) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function initReplicaSet() {
-  const existingCfg = db.getSiblingDB('local').system.replset.findOne({ _id: rsName });
-  if (!existingCfg) {
-    print(`[rs-init] first-time initiate with members: ${tojson(expectedMembers)}`);
-    return rs.initiate({ _id: rsName, members: expectedMembers });
-  }
-
-  print(`[rs-init] existing config detected, forcing reconfig`);
-  const nextCfg = Object.assign({}, existingCfg);
-  nextCfg.members = expectedMembers;
-  nextCfg.version = (existingCfg.version || 1) + 1;
-  return rs.reconfig(nextCfg, { force: true });
-}
-
-function ensureReplicaSet() {
-  try {
-    const status = rs.status();
-    if (membersNeedUpdate(status.members)) {
-      print('[rs-init] status members mismatch, reconfiguring');
-      initReplicaSet();
-    } else {
-      print('[rs-init] replica set already configured as expected');
-    }
-  } catch (err) {
-    if (err.codeName === 'NotYetInitialized' || err.codeName === 'NodeNotFound') {
-      print(`[rs-init] status error ${err.codeName}, reconfiguring`);
-      initReplicaSet();
-    } else if (err.codeName === 'AlreadyInitialized') {
-      print('[rs-init] previous state detected, reconfiguring');
-      initReplicaSet();
-    } else {
-      throw err;
-    }
-  }
-}
-
-ensureReplicaSet();
-EOF
+            printf 'const rsName = process.env.REPLICA_SET_NAME;\nconst primaryHost = process.env.PRIMARY_HOST;\nconst secondaryHost = process.env.SECONDARY_HOST;\nconst expectedMembers = [\n  { _id: 0, host: primaryHost, priority: 2 },\n  { _id: 1, host: secondaryHost, priority: 1 }\n];\nconst rsSettings = {\n  electionTimeoutMillis: 5000,\n  heartbeatIntervalMillis: 2000,\n  heartbeatTimeoutSecs: 10\n};\n\nfunction membersNeedUpdate(currentMembers) {\n  if (!Array.isArray(currentMembers) || currentMembers.length !== expectedMembers.length) {\n    return true;\n  }\n  for (const expected of expectedMembers) {\n    const match = currentMembers.find(member => member._id === expected._id);\n    if (!match) {\n      return true;\n    }\n    const priority = typeof match.priority === '\''number'\'' ? match.priority : 1;\n    if (match.host !== expected.host || priority !== expected.priority) {\n      return true;\n    }\n  }\n  return false;\n}\n\nfunction initReplicaSet() {\n  const existingCfg = db.getSiblingDB('\''local'\'').system.replset.findOne({ _id: rsName });\n  if (!existingCfg) {\n    print(`[rs-init] first-time initiate with members: ${tojson(expectedMembers)}`);\n    return rs.initiate({ _id: rsName, members: expectedMembers, settings: rsSettings });\n  }\n\n  print(`[rs-init] existing config detected, forcing reconfig`);\n  const nextCfg = Object.assign({}, existingCfg);\n  nextCfg.members = expectedMembers;\n  nextCfg.version = (existingCfg.version || 1) + 1;\n  if (!nextCfg.settings) nextCfg.settings = {};\n  Object.assign(nextCfg.settings, rsSettings);\n  return rs.reconfig(nextCfg, { force: true });\n}\n\nfunction ensureReplicaSet() {\n  try {\n    const status = rs.status();\n    if (membersNeedUpdate(status.members)) {\n      print('\''[rs-init] status members mismatch, reconfiguring'\'');\n      initReplicaSet();\n    } else {\n      print('\''[rs-init] replica set already configured as expected'\'');\n    }\n  } catch (err) {\n    if (err.codeName === '\''NotYetInitialized'\'' || err.codeName === '\''NodeNotFound'\'') {\n      print(`[rs-init] status error ${err.codeName}, reconfiguring`);\n      initReplicaSet();\n    } else if (err.codeName === '\''AlreadyInitialized'\'') {\n      print('\''[rs-init] previous state detected, reconfiguring'\'');\n      initReplicaSet();\n    } else {\n      throw err;\n    }\n  }\n}\n\nensureReplicaSet();\n' > /tmp/rs-init.js
 
             PRIMARY_HOST="${PRIMARY_HOST}" SECONDARY_HOST="${SECONDARY_HOST}" REPLICA_SET_NAME="${REPLICA_SET_NAME}" \
             mongosh --quiet --file /tmp/rs-init.js || true
@@ -137,10 +74,22 @@ EOF
             done
             mongosh --quiet --eval "rs.awaitPrimary();" || true
           else
-            until mongosh --quiet --host "${PRIMARY_HOST}" --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; do
+            # mongodb-1: PRIMARY에 연결 시도 (타임아웃: 30초)
+            PRIMARY_CONNECTED=false
+            for i in {1..15}; do
+              if mongosh --quiet --host "${PRIMARY_HOST}" --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; then
+                PRIMARY_CONNECTED=true
+                echo "Connected to primary"
+                break
+              fi
+              echo "Waiting for primary connection... ($i/15)"
               sleep 2
             done
-            echo "Connected to primary"
+            
+            if [ "$PRIMARY_CONNECTED" = "false" ]; then
+              echo "Warning: Could not connect to primary, but continuing..."
+              echo "MongoDB will wait for Replica Set configuration from PRIMARY"
+            fi
           fi
 
           wait "${MONGO_PID}"

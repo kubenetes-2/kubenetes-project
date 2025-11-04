@@ -10,15 +10,9 @@ spec:
   policyTypes:
   - Ingress
   ingress:
-  - from: []
-    ports:
-    - protocol: TCP
-      port: 3000
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ops
-    ports:
+  # 모든 소스에서의 트래픽 허용 (외부 NodePort 접근 포함)
+  # from 필드를 생략하면 모든 소스에서의 접근이 허용됨
+  - ports:
     - protocol: TCP
       port: 3000
 
@@ -35,6 +29,7 @@ spec:
   policyTypes:
   - Ingress
   ingress:
+  # dev-front namespace의 frontend Pod에서의 접근만 허용
   - from:
     - namespaceSelector:
         matchLabels:
@@ -42,13 +37,6 @@ spec:
       podSelector:
         matchLabels:
           app: frontend
-    ports:
-    - protocol: TCP
-      port: 8000
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ops
     ports:
     - protocol: TCP
       port: 8000
@@ -83,4 +71,22 @@ spec:
     ports:
     - protocol: TCP
       port: 27017
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-ingress-policy
+  namespace: ops
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+  - Ingress
+  ingress:
+  # 모든 소스에서의 트래픽 허용 (외부 NodePort 접근 포함)
+  - ports:
+    - protocol: TCP
+      port: 3000
 

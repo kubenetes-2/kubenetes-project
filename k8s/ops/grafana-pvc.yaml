@@ -12,6 +12,14 @@ spec:
   hostPath:
     path: /mnt/grafana-data
     type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - master1
 
 ---
 apiVersion: v1

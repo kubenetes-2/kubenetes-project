@@ -92,7 +92,7 @@ spec:
   type: NodePort
   ports:
   - port: 3000
-    targetPort: 3000
+    targetPort: http
     nodePort: 30330
     protocol: TCP
     name: http

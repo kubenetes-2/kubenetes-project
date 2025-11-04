@@ -1,0 +1,617 @@
+================================================================================
+                    TRAFFIC FLOW & FILE STRUCTURE & EXECUTION ORDER
+================================================================================
+
+1. 트래픽 플로우 (Traffic Flow)
+================================================================================
+
+[HTTP 요청 시나리오]
+[외부 클라이언트] 
+    ↓ HTTP 요청
+[HAProxy:80] ← 로드밸런싱 (Round-robin, node1~5:30300)
+    ↓
+[Frontend Pod:3000] (dev-front namespace)
+    ↓ (/api 요청)
+[Backend Service] ← Service IP: backend.dev-back.svc.cluster.local:8000
+    ↓ (Cilium eBPF가 Service IP를 Pod IP로 변환)
+    ↓ kube-proxy 없이 Cilium eBPF가 직접 처리
+[Backend Pod:8000] ← 클러스터 내부 직접 라우팅 (Cilium eBPF)
+    ↓ (MongoDB Service를 통한 라우팅)
+[MongoDB Service] ← Service IP: mongodb.dev-db.svc.cluster.local:27017
+    ↓ (Cilium eBPF가 Service IP를 Pod IP로 변환)
+    ↓ kube-proxy 없이 Cilium eBPF가 직접 처리
+[MongoDB Replica Set:27017] (dev-db namespace)
+    ├── mongodb-0 (PRIMARY)
+    └── mongodb-1 (SECONDARY) ← 자동 동기화
+
+[HTTPS 요청 시나리오]
+[외부 클라이언트]
+    ↓ HTTPS 요청
+[HAProxy:443] ← HTTPS 로드밸런싱 (Round-robin, node1~5:30443)
+    ↓
+[Ingress Controller (NodePort 30443)]
+    ↓ (경로 기반 라우팅)
+    ├── / → Frontend Service → Cilium eBPF → Frontend Pod:3000
+    └── /api → Backend Service → Cilium eBPF → Backend Pod:8000
+    ↓ (kube-proxy 없이 Cilium eBPF가 직접 Service 라우팅 처리)
+[MongoDB Replica Set:27017]
+
+[API 직접 호출 시나리오]
+[외부 클라이언트]
+    ↓ HTTP 요청
+[HAProxy:8080] ← Backend API 직접 접근 (선택적)
+    ↓ 로드밸런싱 (Round-robin, node1~5:30080)
+[Backend Pod:8000] (dev-back namespace)
+    ↓ (MongoDB Service를 통한 라우팅)
+[MongoDB Service] ← Service IP: mongodb.dev-db.svc.cluster.local:27017
+    ↓ (Cilium eBPF가 Service IP를 Pod IP로 변환)
+    ↓ kube-proxy 없이 Cilium eBPF가 직접 처리
+[MongoDB Replica Set:27017]
+
+[Frontend → Backend 통신]
+Frontend가 Backend를 호출할 때:
+  - 클러스터 내부: http://backend.dev-back.svc.cluster.local:8000 (Service 이름 사용)
+  - 또는: http://backend-proxy.dev-front.svc.cluster.local:8000 (ExternalName Service)
+  - HAProxy 경유 없이 직접 통신 (Cilium CNI를 통한 서비스 라우팅)
+  - 네트워크 정책으로 Frontend → Backend 허용 (포트 8000)
+
+서비스 라우팅 과정 (kube-proxy 대체):
+  1. Frontend Pod에서 Service IP 요청
+     → Service: backend.dev-back.svc.cluster.local:8000
+  2. Cilium eBPF가 Service IP를 Pod IP로 변환
+     → kube-proxy iptables/IPVS 체인 없이 커널 레벨에서 직접 처리
+     → eBPF 프로그램이 Service IP → Pod IP 매핑 수행
+  3. Backend Pod로 직접 라우팅
+     → Cilium eBPF가 선택한 Backend Pod IP로 트래픽 전달
+     → 로드밸런싱도 eBPF에서 처리 (Round-robin, Least Connection 등)
+  4. 네트워크 정책 검사
+     → Cilium NetworkPolicy가 eBPF에서 직접 검사
+     → 허용된 트래픽만 전달
+
+[HAProxy 역할 (핵심)]
+주요 역할: 
+  - HTTP 트래픽(포트 80) → Frontend Pod들로 직접 로드밸런싱
+    * node1~5의 Frontend NodePort(30300)로 분배
+    * Health check 수행 (GET /health)
+    * Round-robin 방식으로 트래픽 분산 (5개 노드)
+  
+  - HTTPS 트래픽(포트 443) → Ingress Controller로 로드밸런싱
+    * node1~5의 Ingress Controller HTTPS NodePort(30443)로 분배
+    * Ingress Controller가 경로 기반 라우팅 (/ → Frontend, /api → Backend)
+    * TCP 모드 (SSL/TLS 통과)
+
+보조 역할:
+  - Backend API 직접 접근 (8080 → 30080) - 선택적
+  - Kubernetes API Server (6443 → master1~3:6443)
+  - Grafana 모니터링 (30330 → master1:30330)
+  - Prometheus 메트릭 (30909)
+
+[포트 매핑]
+- HAProxy: 80(Frontend), 8080(Backend), 443(HTTPS), 6443(K8s API), 30330(Grafana), 30909(Prometheus)
+- Frontend: 3000 (NodePort 30300)
+- Backend: 8000 (NodePort 30080)
+- MongoDB: 27017 (ClusterIP)
+- Prometheus: 9090 (NodePort 30909)
+- Grafana: 3000 (NodePort 30330)
+
+[네트워크 구성]
+- CNI: Cilium (kube-proxy 완전 대체)
+- 서비스 로드밸런싱: Cilium eBPF 기반 (kube-proxy iptables/IPVS 대체)
+- 네트워크 정책: Cilium NetworkPolicy (네이티브 eBPF 구현)
+- 장점: 
+  → kube-proxy 없이 Cilium이 직접 서비스 로드밸런싱 처리
+  → eBPF 기반으로 더 빠른 성능과 낮은 지연시간
+  → 네트워크 정책도 eBPF에서 직접 처리
+
+[MongoDB Replica Set]
+구성:
+  - mongodb-0: PRIMARY (priority: 2)
+  - mongodb-1: SECONDARY (priority: 1)
+
+동기화:
+  Primary(mongodb-0) → Secondary(mongodb-1) 자동 복제
+  - 실시간 데이터 복제 확인 (optime 동기화)
+
+자동 Failover:
+  mongodb-0 다운 → mongodb-1이 자동으로 PRIMARY로 승격
+  - Election 메커니즘 작동
+  - Backend는 Replica Set 연결로 자동 재연결
+  - 연결 문자열: mongodb://mongodb-0.mongodb-headless.dev-db.svc.cluster.local:27017,mongodb-1.mongodb-headless.dev-db.svc.cluster.local:27017/jobsdb?replicaSet=rs0&readPreference=primary&retryWrites=true
+
+================================================================================
+2. 네트워크 구성 (Network Configuration)
+================================================================================
+
+[CNI 플러그인 - Cilium]
+- Cilium: Kubernetes CNI 플러그인 사용
+- kube-proxy: 완전 대체됨 (Cilium이 직접 서비스 로드밸런싱 처리)
+- 구현 방식: eBPF (Extended Berkeley Packet Filter)
+- 장점:
+  → kube-proxy 없이 동작 (더 적은 리소스 사용)
+  → eBPF 기반으로 더 빠른 서비스 라우팅
+  → 네트워크 정책도 eBPF에서 직접 처리 (더 효율적)
+  → 낮은 CPU 오버헤드와 지연시간
+
+[Cilium이 kube-proxy를 완전 대체한 이유]
+전통적 방식 (kube-proxy):
+  - kube-proxy가 iptables/IPVS 규칙을 생성하여 서비스 로드밸런싱 처리
+  - iptables 체인을 통과하는 방식으로 오버헤드 발생
+  - 규칙이 많아질수록 성능 저하
+
+현재 방식 (Cilium eBPF):
+  - Cilium이 kube-proxy를 완전 대체하여 서비스 로드밸런싱 직접 처리
+  - eBPF 프로그램이 커널 레벨에서 직접 트래픽 처리
+  - iptables/IPVS 체인 없이 Pod로 직접 라우팅
+  - kube-proxy DaemonSet이 클러스터에 존재하지 않음
+
+[서비스 로드밸런싱]
+- 전통적 방식: kube-proxy (iptables/IPVS) 사용
+- 현재 방식: Cilium eBPF 기반 서비스 로드밸런싱 (kube-proxy 완전 대체)
+- 작동 방식:
+  → Service 요청 → Cilium eBPF 프로그램 → Pod로 직접 라우팅
+  → iptables/IPVS 체인 없이 커널 레벨에서 직접 처리
+  → 더 빠른 성능과 확장성
+- 예시:
+  → frontend Pod에서 backend Service 호출
+  → Cilium eBPF가 Service IP를 Pod IP로 변환하여 직접 라우팅
+  → kube-proxy 없이 동작
+
+[네트워크 정책]
+- 구현: Cilium NetworkPolicy (네이티브 eBPF)
+- 기존 Kubernetes NetworkPolicy를 Cilium이 eBPF로 변환
+- 모든 네트워크 정책 검사가 커널 레벨에서 eBPF로 처리됨
+- kube-proxy와 무관하게 독립적으로 동작
+
+================================================================================
+3. 파일 구조 (File Structure)
+================================================================================
+
+[네임스페이스 지정된 파일들]
+k8s/
+├── namespace.yaml                    # 네임스페이스 (dev-front, dev-back, dev-db, ops)
+├── storageclass-hostpath.yaml        # StorageClass (HostPath)
+│
+├── mongodb-statefulset.yaml          # MongoDB StatefulSet (namespace: dev-db 지정)
+├── mongodb-service.yaml              # MongoDB Service (ClusterIP, namespace: dev-db 지정)
+├── mongodb-headless-service.yaml     # MongoDB Headless Service (namespace: dev-db 지정)
+│
+├── backend-deployment.yaml           # Backend Deployment (namespace: dev-back 지정)
+├── backend-service.yaml              # Backend Service (NodePort 30080, namespace: dev-back 지정)
+├── backend-proxy-service.yaml        # Backend Proxy Service (ExternalName, namespace: dev-front 지정)
+│
+├── frontend-deployment.yaml          # Frontend Deployment (namespace: dev-front 지정)
+├── frontend-service.yaml             # Frontend Service (NodePort 30300, namespace: dev-front 지정)
+│
+├── network-policy-ingress.yaml       # Ingress 네트워크 정책 (namespace: dev-front, dev-back, dev-db, ops 지정)
+├── network-policy-egress.yaml        # Egress 네트워크 정책 (namespace: dev-front, dev-back, dev-db 지정)
+│
+├── hpa.yaml                          # HPA (namespace: dev-back, dev-front 지정)
+├── configmap.yaml                    # ConfigMap (namespace: dev-back, dev-front 지정)
+│
+└── ops/
+    ├── prometheus-deployment.yaml    # Prometheus Deployment (namespace: ops 지정, ServiceAccount: prometheus 사용)
+    ├── prometheus-rbac.yaml          # Prometheus RBAC 추가 (namespace: ops 지정)
+    │                                  #   - ServiceAccount: prometheus (ops)
+    │                                  #   - ClusterRole: prometheus (클러스터 레벨)
+    │                                  #   - ClusterRoleBinding: prometheus (클러스터 레벨)
+    ├── grafana-deployment.yaml       # Grafana Deployment (namespace: ops 지정)
+    ├── grafana-pvc.yaml              # Grafana PVC (namespace: ops 지정)
+    └── node-exporter-daemonset.yaml  # Node Exporter DaemonSet (namespace: ops 지정)
+
+haproxy/
+└── haproxy.cfg                       # HAProxy 설정 (로드밸런서 서버에 배포)
+
+backend/
+├── app.js                            # Express 메인 서버
+├── Dockerfile                        # Backend 이미지 빌드
+├── package.json                      # Node.js dependencies
+├── controllers/                      # 컨트롤러
+│   ├── auth.controller.js            # 인증 컨트롤러
+│   └── favorite.controller.js       # 즐겨찾기 컨트롤러
+├── middleware/
+│   └── auth.middleware.js           # 인증 미들웨어
+├── models/                           # 데이터 모델
+│   ├── favorite.model.js             # 즐겨찾기 모델
+│   └── user.model.js                # 사용자 모델
+└── routes/                           # 라우터
+    ├── auth.js                       # 인증 라우터
+    ├── favorites.js                  # 즐겨찾기 라우터
+    ├── index.js                      # 메인 라우터
+    ├── jobs.js                       # 작업 라우터
+    ├── messages.js                   # 메시지 라우터
+    └── work24.js                     # Work24 API 라우터
+
+frontend/
+└── app/
+    ├── server.js                     # Express 서버 (프록시 역할)
+    ├── Dockerfile                    # Frontend 이미지 빌드
+    ├── package.json                  # Node.js dependencies
+    ├── api/work24/route.js           # Work24 API 라우터
+    ├── import/work24/route.js        # Import API 라우터
+    ├── jobs/                         # 작업 페이지
+    │   ├── jobs.module.css
+    │   └── page.js
+    ├── page.js                       # 메인 페이지
+    ├── page.module.css
+    └── public/                       # 정적 파일
+        ├── *.html                    # HTML 페이지들 (index, login, signup, history 등)
+        ├── css/                      # 스타일시트
+        │   ├── form.css
+        │   └── style.css
+        ├── js/                       # 클라이언트 JavaScript
+        │   ├── app.js                # 메인 앱 로직
+        │   ├── auth.js               # 인증 관련
+        │   ├── auth-ui.js            # 인증 UI
+        │   ├── edit.js               # 편집 기능
+        │   ├── new.js                # 신규 생성
+        │   └── storage.js            # 로컬 스토리지
+        └── img/                      # 이미지 파일
+            └── Gamja.png
+
+haproxy/
+└── haproxy.cfg                       # HAProxy 로드밸런서 설정
+    - Kubernetes API Server (6443 → master1~3:6443)
+    - Frontend (80 → node1~5:30300)
+    - Backend API (8080 → node1~5:30080)
+    - Grafana (30330 → master1:30330)
+    - Prometheus (30909)
+    - Stats (8404)
+
+================================================================================
+4. 실행 순서 (Execution Order)
+================================================================================
+
+[1단계: 기본 인프라]
+1. namespace.yaml
+   → kubectl apply -f k8s/namespace.yaml
+   → 네임스페이스 생성 (dev-front, dev-back, dev-db, ops)
+
+2. storageclass-hostpath.yaml
+   → kubectl apply -f k8s/storageclass-hostpath.yaml
+   → StorageClass 생성 (PVC용)
+
+[2단계: 데이터베이스 계층]
+3. mongodb-statefulset.yaml
+   → kubectl apply -f k8s/mongodb-statefulset.yaml
+   → MongoDB StatefulSet 생성 (namespace: dev-db 지정, 2개 레플리카)
+
+4. mongodb-service.yaml
+   → kubectl apply -f k8s/mongodb-service.yaml
+   → MongoDB Service 생성 (namespace: dev-db 지정, ClusterIP)
+
+5. mongodb-headless-service.yaml
+   → kubectl apply -f k8s/mongodb-headless-service.yaml
+   → MongoDB Headless Service 생성 (namespace: dev-db 지정, StatefulSet용)
+
+[3단계: 백엔드 계층]
+6. backend-deployment.yaml
+   → kubectl apply -f k8s/backend-deployment.yaml
+   → Backend Deployment 생성 (namespace: dev-back 지정, 3개 레플리카)
+
+7. backend-service.yaml
+   → kubectl apply -f k8s/backend-service.yaml
+   → Backend Service 생성 (namespace: dev-back 지정, NodePort 30080)
+
+8. backend-proxy-service.yaml
+   → kubectl apply -f k8s/backend-proxy-service.yaml
+   → Backend Proxy Service 생성 (namespace: dev-front 지정, ExternalName)
+
+[4단계: 프론트엔드 계층]
+9. frontend-deployment.yaml
+   → kubectl apply -f k8s/frontend-deployment.yaml
+   → Frontend Deployment 생성 (namespace: dev-front 지정, 3개 레플리카)
+
+10. frontend-service.yaml
+    → kubectl apply -f k8s/frontend-service.yaml
+    → Frontend Service 생성 (namespace: dev-front 지정, NodePort 30300)
+
+[5단계: 네트워크 정책]
+11. network-policy-ingress.yaml
+    → kubectl apply -f k8s/network-policy-ingress.yaml
+    → Ingress 네트워크 정책 적용 (namespace: dev-front, dev-back, dev-db, ops 지정)
+
+12. network-policy-egress.yaml
+    → kubectl apply -f k8s/network-policy-egress.yaml
+    → Egress 네트워크 정책 적용 (namespace: dev-front, dev-back, dev-db 지정)
+
+[6단계: 자동화 및 모니터링]
+13. configmap.yaml
+    → kubectl apply -f k8s/configmap.yaml
+    → ConfigMap 생성 (namespace: dev-back, dev-front 지정, 환경 변수)
+
+14. hpa.yaml
+    → kubectl apply -f k8s/hpa.yaml
+    → HPA 설정 (namespace: dev-back, dev-front 지정)
+
+15. ops/prometheus-rbac.yaml (RBAC 추가)
+    → kubectl apply -f k8s/ops/prometheus-rbac.yaml
+    → Prometheus RBAC 설정 (namespace: ops 지정)
+    →   - ServiceAccount: prometheus (ops namespace)
+    →   - ClusterRole: prometheus (클러스터 레벨, nodes, services, endpoints, pods 조회 권한)
+    →   - ClusterRoleBinding: prometheus (클러스터 레벨, ServiceAccount와 ClusterRole 연결)
+
+16. ops/prometheus-deployment.yaml
+    → kubectl apply -f k8s/ops/prometheus-deployment.yaml
+    → Prometheus Deployment 생성 (namespace: ops 지정, ServiceAccount: prometheus 사용)
+
+17. ops/grafana-pvc.yaml
+    → kubectl apply -f k8s/ops/grafana-pvc.yaml
+    → Grafana PVC 생성 (namespace: ops 지정)
+
+18. ops/grafana-deployment.yaml
+    → kubectl apply -f k8s/ops/grafana-deployment.yaml
+    → Grafana Deployment 생성 (namespace: ops 지정)
+
+19. ops/node-exporter-daemonset.yaml
+    → kubectl apply -f k8s/ops/node-exporter-daemonset.yaml
+    → Node Exporter DaemonSet 생성 (namespace: ops 지정, 모든 노드)
+
+[7단계: 로드밸런서]
+20. HAProxy 설정
+    → haproxy.cfg를 로드밸런서 서버(192.168.0.204)에 배포
+    → sudo systemctl restart haproxy
+    → HAProxy 재시작
+
+================================================================================
+5. 서비스 엔드포인트 (Service Endpoints)
+================================================================================
+
+[외부 접근]
+- Frontend: http://192.168.0.204:3000
+- Backend API: http://192.168.0.204:8000
+- Grafana: http://192.168.0.204:30330
+
+[클러스터 내부 접근]
+- Frontend: http://frontend.dev-front.svc.cluster.local:3000
+- Backend: http://backend.dev-back.svc.cluster.local:8000
+- Backend Proxy: http://backend-proxy.dev-front.svc.cluster.local:8000
+- MongoDB: mongodb://mongodb.dev-db.svc.cluster.local:27017/jobsdb
+
+[NodePort 접근]
+- Frontend: http://<노드IP>:30300
+- Backend: http://<노드IP>:30080
+- Grafana: http://<노드IP>:30330
+
+================================================================================
+6. 네임스페이스별 리소스 배치 (Namespace Resource Mapping)
+================================================================================
+
+[dev-front namespace]
+- frontend Deployment
+- frontend Service (NodePort 30300)
+- backend-proxy Service (ExternalName)
+- frontend-ingress-policy (NetworkPolicy)
+- frontend-egress-policy (NetworkPolicy)
+- frontend-hpa (HPA)
+
+[dev-back namespace]
+- backend Deployment
+- backend Service (NodePort 30080)
+- backend-ingress-policy (NetworkPolicy)
+- backend-egress-policy (NetworkPolicy)
+- backend-hpa (HPA)
+
+[dev-db namespace]
+- mongodb StatefulSet (2개 레플리카)
+- mongodb Service (ClusterIP)
+- mongodb-headless Service (Headless)
+- mongodb-ingress-policy (NetworkPolicy)
+- mongodb-egress-policy (NetworkPolicy)
+
+[ops namespace]
+- prometheus Deployment
+- prometheus ServiceAccount
+- grafana Deployment
+- grafana Service (NodePort 30330)
+- grafana PVC
+- node-exporter DaemonSet
+- node-exporter Service
+- grafana-ingress-policy (NetworkPolicy)
+
+[클러스터 레벨]
+- prometheus ClusterRole
+- prometheus ClusterRoleBinding
+- metrics-server (kube-system namespace)
+- Cilium CNI (kube-proxy 대체)
+  → Cilium DaemonSet (모든 노드)
+  → Cilium Operator
+  → eBPF 기반 서비스 로드밸런싱
+
+================================================================================
+7. ConfigMap 설정 (ConfigMap Configuration)
+================================================================================
+
+[dev-back namespace - app-config ConfigMap]
+- 이름: app-config
+- 목적: Backend 애플리케이션 환경 변수 관리
+- 설정 항목:
+  → jwt-secret: JWT 토큰 서명용 시크릿 키
+     → Backend Deployment에서 JWT_SECRET 환경 변수로 사용
+     → 인증 토큰 생성/검증에 사용
+  → frontend-origin: Frontend 원본 URL (CORS 설정용)
+     → Backend Deployment에서 FRONTEND_ORIGIN 환경 변수로 사용
+     → CORS 정책에서 허용할 기본 origin
+  → allowed-origins: CORS 허용 origin 목록 (쉼표로 구분)
+     → Backend Deployment에서 ALLOWED_ORIGINS 환경 변수로 사용
+     → HAProxy, NodePort 등 다양한 접근 경로 허용
+     → 예: http://192.168.0.204:80, http://192.168.56.104:30300 등
+  → work24-key: Work24 API 키
+     → Backend Deployment에서 WORK24_KEY 환경 변수로 사용
+     → 외부 Work24 채용공고 API 호출에 사용
+  → work24-base-url: Work24 API 기본 URL
+     → Backend Deployment에서 WORK24_BASE_URL 환경 변수로 사용
+     → Work24 API 엔드포인트 URL
+
+[dev-front namespace - app-config ConfigMap]
+- 이름: app-config
+- 목적: Frontend 애플리케이션 환경 변수 관리
+- 설정 항목:
+  → work24-key: Work24 API 키
+     → Frontend Deployment에서 WORK24_API_KEY 환경 변수로 사용
+     → 프론트엔드에서 Work24 API 직접 호출 시 사용
+
+[ConfigMap 사용 방식]
+- Backend Deployment:
+  → JWT_SECRET ← app-config.jwt-secret
+  → FRONTEND_ORIGIN ← app-config.frontend-origin
+  → ALLOWED_ORIGINS ← app-config.allowed-origins
+  → WORK24_KEY ← app-config.work24-key
+  → WORK24_BASE_URL ← app-config.work24-base-url
+- Frontend Deployment:
+  → WORK24_API_KEY ← app-config.work24-key
+
+[ConfigMap 장점]
+- 환경 변수를 YAML 파일에 하드코딩하지 않음
+- 설정 변경 시 ConfigMap만 수정하면 Pod 재시작 없이 반영 가능 (환경 변수 주입 방식)
+- 민감한 정보는 Secret으로 분리 가능 (현재는 간단한 키만 ConfigMap 사용)
+- 네임스페이스별로 독립적인 설정 관리 가능
+
+================================================================================
+8. Secret 설정 (Secret Configuration)
+================================================================================
+
+[imagePullSecrets - Harbor 레지스트리 인증]
+- Secret 이름: harbor-registry-secret
+- 목적: Harbor 사설 레지스트리에서 이미지 Pull 시 인증
+- 사용 위치:
+  → Frontend Deployment (namespace: dev-front)
+  → Backend Deployment (namespace: dev-back)
+  → MongoDB StatefulSet (namespace: dev-db)
+- 사용 방식:
+  → spec.template.spec.imagePullSecrets에서 참조
+  → Harbor 레지스트리(192.168.0.208)에서 이미지 다운로드 시 인증 정보 제공
+- Secret 생성 방법 (예시):
+  kubectl create secret docker-registry harbor-registry-secret \
+    --docker-server=192.168.0.208 \
+    --docker-username=<username> \
+    --docker-password=<password> \
+    --docker-email=<email> \
+    -n <namespace>
+
+[Secret 사용 현황]
+- ✅ 사용 중: harbor-registry-secret (imagePullSecrets)
+- ❌ 사용 안 함: 
+  → JWT Secret: 현재 ConfigMap에 저장 (프로덕션에서는 Secret으로 이동 권장)
+  → Grafana 비밀번호: 하드코딩 (프로덕션에서는 Secret 사용 권장)
+
+[Secret vs ConfigMap]
+- ConfigMap: 민감하지 않은 설정 정보 (JWT Secret, API Key 등은 현재 ConfigMap 사용)
+- Secret: 민감한 정보 (비밀번호, 인증 토큰 등)
+  → 현재는 Harbor 레지스트리 인증에만 사용
+  → JWT Secret, Grafana 비밀번호 등은 향후 Secret으로 이동 권장
+
+================================================================================
+9. RBAC 설정 (RBAC Configuration)
+================================================================================
+
+[ServiceAccount 권한이란?]
+ServiceAccount는 Pod 내에서 실행되는 프로세스가 Kubernetes API를 호출할 때 사용하는 인증 주체입니다.
+
+기본 개념:
+  1. ServiceAccount: Pod가 Kubernetes API를 호출할 때 사용하는 신원(identity)
+  2. Role/ClusterRole: 어떤 리소스에 대해 어떤 작업을 할 수 있는지 정의 (권한 정의)
+  3. RoleBinding/ClusterRoleBinding: ServiceAccount와 Role/ClusterRole을 연결 (권한 부여)
+
+권한 부여 방식:
+  - Role: 네임스페이스 레벨 권한 (특정 namespace 내에서만 유효)
+  - ClusterRole: 클러스터 레벨 권한 (모든 namespace에서 유효)
+  - RoleBinding: Role과 ServiceAccount를 연결 (네임스페이스 레벨)
+  - ClusterRoleBinding: ClusterRole과 ServiceAccount를 연결 (클러스터 레벨)
+
+권한 예시:
+  - get, list, watch: 리소스 조회 (읽기)
+  - create, update, patch: 리소스 생성/수정 (쓰기)
+  - delete: 리소스 삭제
+  - nodes/proxy: 노드 프록시 접근 (메트릭 수집 등)
+
+기본 ServiceAccount (default):
+  - 모든 Pod는 기본적으로 default ServiceAccount를 사용
+  - 기본 ServiceAccount는 권한이 거의 없음:
+    ❌ GET, LIST, WATCH 권한 없음 (대부분의 리소스 조회 불가)
+    ❌ CREATE, UPDATE, PATCH 권한 없음 (리소스 생성/수정 불가)
+    ❌ DELETE 권한 없음 (리소스 삭제 불가)
+    ✅ 자체 정보 조회만 가능 (자신의 ServiceAccount 정보 등)
+  - 명시적으로 Role/ClusterRole을 통해 권한을 부여받지 않으면 거의 아무것도 할 수 없음
+  - Kubernetes API를 호출하지 않는 Pod는 기본 ServiceAccount로 충분
+
+특별한 권한이 필요한 경우:
+  - Prometheus: 클러스터 메트릭 수집을 위해 nodes, pods, services 조회 권한 필요
+  - 애플리케이션 Pod: 일반적으로 Kubernetes API를 호출하지 않으므로 특별한 권한 불필요
+
+[ops namespace - Prometheus RBAC]
+파일: k8s/ops/prometheus-rbac.yaml
+
+구성:
+  - ServiceAccount: prometheus (namespace: ops)
+  - ClusterRole: prometheus (클러스터 레벨)
+    → 권한: nodes, nodes/proxy, services, endpoints, pods 조회 (get, list, watch)
+    → 권한: ingresses 조회 (get, list, watch)
+    → 권한: /metrics 엔드포인트 접근 (get)
+  - ClusterRoleBinding: prometheus (클러스터 레벨)
+    → roleRef: ClusterRole prometheus
+    → subjects: ServiceAccount prometheus (ops namespace)
+
+사용:
+  - Prometheus Deployment에서 ServiceAccount: prometheus 명시
+
+목적:
+  - Prometheus가 클러스터 메트릭 수집을 위해 Kubernetes API 호출 필요
+  - Service Discovery (kubernetes_sd_configs)를 통한 Pod, Node, Service 목록 조회
+  - 각 노드의 메트릭 수집 (nodes/proxy 권한)
+
+[dev-front, dev-back, dev-db namespace - RBAC 상태]
+현재 상태:
+  - dev-front: RBAC 없음 (기본 ServiceAccount 사용)
+  - dev-back: RBAC 없음 (기본 ServiceAccount 사용)
+  - dev-db: RBAC 없음 (기본 ServiceAccount 사용)
+
+이유:
+  - Frontend/Backend/MongoDB 애플리케이션 코드는 Kubernetes API를 호출하지 않음
+  - 따라서 RBAC 권한이 불필요함
+  - 기본 ServiceAccount 권한으로 충분함
+
+[RBAC 권한 요약]
+- ops (prometheus ServiceAccount):
+  ✅ 클러스터 전체 조회 권한 (nodes, pods, services, endpoints, ingresses)
+  ✅ /metrics 엔드포인트 접근
+  → 목적: 클러스터 메트릭 수집
+
+- dev-front, dev-back, dev-db (기본 ServiceAccount):
+  ❌ GET, LIST, WATCH 권한 없음
+  ❌ CREATE, UPDATE, PATCH, DELETE 권한 없음
+  → Kubernetes API를 호출하지 않으므로 특별한 권한 불필요
+  → 기본 ServiceAccount의 제한된 권한으로도 충분 (애플리케이션이 Kubernetes API를 사용하지 않음)
+
+================================================================================
+10. 체크리스트 (Checklist)
+================================================================================
+
+[배포 후 확인]
+□ kubectl get namespaces
+□ kubectl get pods -n dev-front
+□ kubectl get pods -n dev-back
+□ kubectl get pods -n dev-db
+□ kubectl get pods -n ops
+□ kubectl get services -n dev-front
+□ kubectl get services -n dev-back
+□ kubectl get services -n dev-db
+□ kubectl get services -n ops
+□ kubectl get networkpolicies -n dev-front
+□ kubectl get networkpolicies -n dev-back
+□ kubectl get networkpolicies -n dev-db
+□ kubectl get networkpolicies -n ops
+□ kubectl get hpa -n dev-front
+□ kubectl get hpa -n dev-back
+□ kubectl get configmap -n dev-back
+□ kubectl get configmap -n dev-front
+□ kubectl get secret -n dev-front | grep harbor-registry-secret
+□ kubectl get secret -n dev-back | grep harbor-registry-secret
+□ kubectl get secret -n dev-db | grep harbor-registry-secret
+□ kubectl get serviceaccount -n ops
+□ kubectl get clusterrole | grep prometheus
+□ kubectl get clusterrolebinding | grep prometheus
+□ HAProxy 상태 확인 (sudo systemctl status haproxy)
+□ 외부 접근 테스트 (curl http://192.168.0.204:3000/health)
+
+================================================================================
+

@@ -20,7 +20,7 @@ spec:
       - name: harbor-registry-secret
       containers:
       - name: backend
-        image: 192.168.0.208/proj/backend:1.7
+        image: 192.168.0.208/proj/backend:1.11
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
